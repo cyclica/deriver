@@ -1,0 +1,517 @@
+#! /bin/bash
+
+function main
+{
+    start_dir="${PWD}"
+    command_dir="$(cd "$(dirname $0)" && pwd)"
+    cd "${command_dir}"/../
+    project_dir="${PWD}"
+    default_release=Release_2018_09_1
+    default_python_version=3.6
+
+
+    parse_opts "${@}"
+
+
+    #
+    # Check the parameters
+    #
+
+    if [ -z "${release}" ]
+    then
+        debug "Defaulting release to ${default_release}"
+        release="${default_release}"
+    fi
+
+    if [ -z "${python_version}" ]
+    then
+        debug "Defaulting python_version to ${default_python_version}"
+        python_version="${default_python_version}"
+    fi
+
+    case "${python_version}" in
+        2.7)
+            ;;
+        3.6)
+            ;;
+        *)
+            die "ERROR: Invalid or unsupported Python version: ${python_version}"
+            ;;
+    esac
+
+    debug "Initial install dir path: ${install_dir}"
+
+    cd "${start_dir}"
+
+    if [ -z "${venv}" ]
+    then
+        # Use the currently active Python virtual environment, if any.
+        if [ ! -z "${VIRTUAL_ENV}" ]
+        then
+            venv="${VIRTUAL_ENV}"
+        fi
+    fi
+
+    if [ ! -z "${venv}" ]
+    then
+        if [ ! -d "${venv}" ]
+        then
+            die 'virtual-env is not a directory.'
+        fi
+
+        # Ensure venv is a fully qualified path.
+        venv="$(cd "${venv}" && pwd)"
+
+        if [ ! -f "${venv}"/lib/python${python_version}/site-packages/pip/__init__.py ]
+        then
+            die "${venv} is not a valid Python virtual environment for python${python_version}."
+        fi
+        debug "Absolute venv path: ${venv}"
+
+
+        # Make sure the venv has numpy installed.
+
+        if [ -z "${VIRTUAL_ENV}" ]
+        then
+            source "${venv}"/bin/activate
+        fi
+
+        if ! python -c 'import numpy' 2> /dev/null
+        then
+            pip install numpy
+        fi
+
+        deactivate
+
+
+        numpy_cmake_option="-D PYTHON_NUMPY_INCLUDE_PATH='${venv}/lib/python${python_version}/site-packages/numpy/core/include'"
+    fi
+
+    if [ ! -d "${install_dir}" ]
+    then
+        mkdir -p "${install_dir}"
+        check_err $? 'Install directory could not be created.'
+    fi
+
+    if [ ! -w "${install_dir}" ]
+    then
+        die 'Install directory is not writeable.'
+    fi
+
+    # Ensure Install dir is a fully qualified path.
+    install_dir="$(cd "${install_dir}" && pwd)"
+    debug "Absolute install dir path: ${install_dir}"
+
+
+    echo
+    echo 'Installing required system packages. Enter your password if you are prompted.'
+    echo
+
+    if [[ "$OSTYPE" == "darwin"* ]]
+    then
+        brew update
+        brew tap rdkit/rdkit
+        brew install rdkit # possibly use the ignore numpy command
+        # set bash_profile variable RDBASE to location of installation
+        # upgrade numpy using 'pip install numpy --upgrade', need version >=1.8.2
+        # may also need to install openbabel via pip 'pip install openbabel'
+    else
+        case "${python_version}" in
+            3.6)
+                debug "Installing Python ${python_version} packages..."
+                sudo apt install -y \
+                    wget python3-dev python3-apt build-essential cmake libboost-dev \
+                    libboost-python-dev libboost-regex-dev libboost-system-dev \
+                    libboost-thread-dev libboost-serialization-dev rdkit-data \
+                    python3-numpy sqlite3 libsqlite3-dev python3-scipy \
+                    python3-matplotlib python3-pandas python3-sympy python3-nose \
+                    openbabel
+                check_err $? 'Could not install required system packages.'
+                ;;
+            2.7)
+                debug "Installing Python ${python_version} packages..."
+                sudo apt install -y \
+                    wget python-dev python-apt build-essential cmake libboost-dev \
+                    libboost-python-dev libboost-regex-dev libboost-system-dev \
+                    libboost-thread-dev libboost-serialization-dev rdkit-data \
+                    python-numpy sqlite3 libsqlite3-dev python-scipy \
+                    python-matplotlib python-pandas python-sympy python-nose \
+                    openbabel
+                check_err $? 'Could not install required system packages.'
+                ;;
+        esac
+    fi
+
+
+    echo
+    echo 'Fetching the archive...'
+    echo
+
+    tmpdir="$(mktemp -d)"
+    cd "${tmpdir}"
+
+    archive_url="https://github.com/rdkit/rdkit/archive/${release}.tar.gz"
+
+    wget "https://github.com/rdkit/rdkit/archive/${release}.tar.gz"
+    check_err $? 'RDKit release could not be downloaded.'
+
+
+    echo
+    echo 'Extracting the archive to the install_dir directory...'
+    echo
+
+    tar -xzf "${release}.tar.gz" -C "${tmpdir}"
+    # Clean out install directory
+    rm -rf "${install_dir}"/{*,.[!.]*}
+    mv ${tmpdir}/rdkit-${release}/{*,.[!.]*} "${install_dir}"
+
+
+    echo
+    echo 'Compiling and installing...'
+    echo
+
+    export RDBASE="${install_dir}"
+    export LD_LIBRARY_PATH=$RDBASE/lib:$LD_LIBRARY_PATH
+    export PYTHONPATH=$RDBASE:$PYTHONPATH
+
+    mkdir -p "${install_dir}/build"
+    cd "${install_dir}/build"
+
+    case "${python_version}" in
+        3.6)
+            debug "Running cmake for Python ${python_version}..."
+            # From the advanced install instructions in the RDKit online docs:
+            # https://www.rdkit.org/docs/Install.html#advanced
+            cmake -D PYTHON_LIBRARY=/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so \
+                -D PYTHON_INCLUDE_DIR=/usr/include/python3.6/ \
+                -D PYTHON_EXECUTABLE=/usr/bin/python3.6 \
+                $numpy_cmake_option \
+                -D RDK_BUILD_INCHI_SUPPORT=ON ..
+            ;;
+        2.7)
+            debug "Running cmake for Python ${python_version}..."
+            cmake -DRDK_BUILD_INCHI_SUPPORT=ON ..
+            ;;
+    esac
+
+    cpu_cores="$(cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l)"
+    make -j $cpu_cores
+    make install
+
+
+    echo
+    echo "RDKit installation is complete. To use it, enter the following commands. You should put these in your ~/.profile file, or in a script that you source when you want to use this RDKit installation."
+    echo
+    echo "export RDBASE=\"${install_dir}\""
+    echo 'export LD_LIBRARY_PATH=$RDBASE/lib:$LD_LIBRARY_PATH'
+    echo 'export PYTHONPATH=$RDBASE:$PYTHONPATH'
+}
+
+
+function print_help
+{
+    cat <<- EOF
+		NAME
+		    install-rdkit
+		
+		SYNOPSIS
+		    install-rdkit INSTALL_DIR
+		
+		DESCRIPTION
+		    Downloads and compiles a specified RDKit release.
+		
+		USAGE
+		    INSTALL_DIR is the directory RDKit will be installed in. can be any
+		    local directory path. If the directory does not exist,
+		    install-rdkit will attempt to create it. WARNING: Anything in this
+		    directory will be deleted.
+		
+		    To use the version of RDKit this installs you must set some environment
+		    variables. You can do those manually. You can put them in your ~/.profile
+		    file to have them set automatically each time you open a new shell. You can
+		    also put them in a file like rdkit-env and run source rdkit-env each
+		    time you want to use it.
+		
+		    If your INSTALL_DIR is /path/to/install/dir, set the following environment
+		    variables.
+		
+		    export RDBASE=/path/to/install/dir
+		    export LD_LIBRARY_PATH=$RDBASE/lib:$LD_LIBRARY_PATH
+		    export PYTHONPATH=$RDBASE:$PYTHONPATH
+		
+		OPTIONS
+		    -r, --release
+		        The name of the release tag in the RDKit official GitHub
+		        repository: https://github.com/rdkit/rdkit/tags. Defaults to
+		        Release_2018_09_1
+		
+		    -p, --python-version
+		        Version of Python to build for. Defaults to 3.6. Current
+		        supports 2.7, and 3.6.
+		
+		    -e, --virtual-env
+		        Path to the Python virtual environment you want to run this
+		        installation of RDKit in. If you have a virtual environment
+		        activated it will default to that. It will ensure the virtual
+		        environment has numpy installed.
+		
+		    -d, --debug
+		        Print debugging output while running.
+		
+		    -h, --help
+		        print this help text and exit.
+		
+		EXAMPLES
+		    # Download and compile Release_2018_09_1 in the current directory
+		    install-rdkit ./
+		
+		    # Download and compile Release_2018_09_1 in /path/to/install/dir
+		    install-rdkit /path/to/install/dir
+		
+		    # Download and compile Release_2018_09_1 for python 2.7 in /path/to/install/dir
+		    install-rdkit --python-version=2.7 --release=Release_2018_09_1 /path/to/install/dir
+	EOF
+}
+
+
+function parse_opts
+{
+    #
+    # Parse the command-line arguments.
+    #
+    # Code borrowed and modified from here:
+    # https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash#answer-29754866
+    #
+
+    ! getopt --test > /dev/null 
+    if [[ ${PIPESTATUS[0]} -ne 4 ]]
+    then
+        die 'I’m sorry, cannot parse command line parameters in this environment. `getopt --test` failed.'
+        exit 1
+    fi
+
+    #
+    # Declare option arguments.
+    #
+    # For options that take a parameter, put a : after the letter or name, ex:
+    #
+    #   OPTIONS=s:dt
+    #   LONGOPTS=source:,debug,test
+    #
+    OPTIONS=r:p:e:dh
+    LONGOPTS=release:,python-version:,virtual-env:,debug,help
+
+    # Use ! and PIPESTATUS to get exit code with errexit set.
+    # Temporarily store output to be able to check for errors.
+    # Activate quoting/enhanced mode (e.g. by writing out “--options”).
+    # Pass arguments only via   -- "$@"   to separate them correctly.
+    ! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]
+    then
+        # e.g. return value is 1
+        #  then getopt has complained about wrong arguments to stdout
+        exit 2
+    fi
+    # read getopt’s output this way to handle the quoting right:
+    eval set -- "$PARSED"
+
+    # Set defaults here or earlier, if any.
+
+    #
+    # Now enjoy the options in order and nicely split until we see --
+    #
+    # For options that take a parameter, write a case like this:
+    #
+    #   -s|--source)
+    #       source="$2"
+    #       shift 2
+    #       ;;
+    #
+    while true
+    do
+        case "$1" in
+            -r|--release)
+                release="${2}"
+                shift 2
+                ;;
+            -p|--python-version)
+                python_version="${2}"
+                shift 2
+                ;;
+            -e|--virtual-env)
+                venv="${2}"
+                shift 2
+                ;;
+            -d|--debug)
+                DEBUG=true
+                shift
+                ;;
+            -h|--help)
+                print_help
+                exit
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                echo "Programming error"
+                exit 3
+                ;;
+        esac
+    done
+
+    if [ -z "${1}" ]
+    then
+        alarm 'No INSTALL_DIR specified'.
+        echo
+        echo 'Usage:'
+        echo
+        print_help
+        exit 1
+    fi
+    install_dir="${1}"
+
+    if [ ! -z "${2}" ]
+    then
+        alarm "ERROR: Unknown option: ${2}"
+        echo
+        echo 'Usage:'
+        echo
+        print_help
+        exit 1
+    fi
+}
+
+
+#
+# bool — medium strictness boolean value checking.
+#
+bool() ([ -z "${2+x}" ] && [[ $1 == true ]])
+
+
+#
+# warn - print warning message
+#
+# $1 - message
+#
+function warn
+{
+    # print to regular output in regular orange
+    printf "\e[0;33m"
+    # Print the message with `echo` to prevent anything in the string from
+    # being interpreted as formatting characters.
+    echo "${1}"
+    printf "\e[m"
+}
+
+
+#
+# alarm - print alarm / error message
+#
+# $1 - message
+#
+function alarm
+{
+    # print to error output in bold red
+    printf "\e[1;31m" >&2
+    # Print the message with `echo` to prevent anything in the string from
+    # being interpreted as formatting characters.
+    echo "${1}" >&2
+    printf "\e[m" >&2
+}
+
+
+#
+# die - print an alarm message and exit with an error code
+#
+# $1 - error message to print
+# $2 - (optional) error code to exit with, defaults to 1
+#
+function die
+{
+    alarm "${1}"
+
+    # Use the return code if it is numeric and not an empty string.
+    if echo "${2}" | grep -qE '^[0-9]+$'
+    then
+        exit ${2}
+    else
+        exit 1
+    fi
+}
+
+
+#
+# check_err - check an error code and exit if it’s not success (0).
+#
+# $1 - return code to check
+# $2 - (optional) text to display on failure. Defaults to basic message.
+# $3 - (optional) error code to exit with, defaults to 1
+#
+function check_err
+{
+    local a=$1
+
+    # Empty strings will evaluate as equal to 0, so check for them first.
+    if [ -z "${a}" ]
+    then
+        # An empty string means this function was called incorrectly, but it
+        # was not given a failure return code, so don’t exit.
+        warn "WARNING: check_err called with no return code."
+        return
+
+    elif ! echo "${a}" | grep -qE '^[0-9]+$'
+    then
+        warn "WARNING: check_err called with non‐numeric value."
+        return
+
+    elif ! (( a == 0 ))
+    then
+        failure=true
+    fi
+
+    if [[ $failure == true ]]
+    then
+        if [ -z "${2}" ]
+        then
+            message="Command returned fatal error."
+        else
+            message="${2}"
+        fi
+
+        # Use the return code if it is numeric and not an empty string.
+        if echo "${3}" | grep -qE '^[0-9]+$'
+        then
+            return_code="${3}"
+        else
+            return_code=1
+        fi
+
+        die "${message}" "${return_code}"
+    fi
+}
+
+
+#
+# debug - print debug message to stderr if DEBUG is set to 'true'
+#
+# $1 - message
+#
+function debug
+{
+    if bool $DEBUG
+    then
+        echo "${1}" >&2
+    fi
+}
+
+
+function clean_up
+{
+    rm -rf ${tmpdir}
+}
+trap clean_up EXIT
+
+
+main "${@}"

@@ -6,7 +6,9 @@ Documentation in progress. See `contrib.examples.basic_usage_example.py` for a b
 Requires `selfies` and `rdkit` to be installed.
 
 # Installation
-rdkit can be installed using by following the instructions here: https://github.com/rdkit/rdkit
+rdkit can be installed on Ubuntu 18.04 using the provided script: `./install-rdkit ./` 
+
+Otherwise, follow the instructions here: https://github.com/rdkit/rdkit
 
 Then you may install deriver using pip: `pip install deriver`
 
