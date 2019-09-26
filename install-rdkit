@@ -1,5 +1,7 @@
 #! /bin/bash
 
+# Code made by @jmcclare while working @Cyclica
+
 function main
 {
     start_dir="${PWD}"
