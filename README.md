@@ -6,7 +6,11 @@ Documentation in progress. See `contrib.examples.basic_usage_example.py` for a b
 Requires `selfies` and `rdkit` to be installed.
 
 # Installation
-rdkit can be installed on Ubuntu 18.04 using the provided script: `./install-rdkit ./` 
+rdkit can be installed on Ubuntu 18.04 using the provided script: 
+
+`mkdir ./rdkit`
+
+`./install-rdkit ./rdkit/` 
 
 Otherwise, follow the instructions here: https://github.com/rdkit/rdkit
 
