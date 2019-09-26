@@ -1,0 +1,13 @@
+README.md
+setup.py
+src/deriver/__init__.py
+src/deriver/api.py
+src/deriver/child_filter.py
+src/deriver/config.py
+src/deriver/selfies_methods.py
+src/deriver.egg-info/PKG-INFO
+src/deriver.egg-info/SOURCES.txt
+src/deriver.egg-info/dependency_links.txt
+src/deriver.egg-info/not-zip-safe
+src/deriver.egg-info/requires.txt
+src/deriver.egg-info/top_level.txt
