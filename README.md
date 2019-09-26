@@ -8,6 +8,8 @@ Requires `selfies` and `rdkit` to be installed.
 # Installation
 On Ubuntu 18.04, rdkit can be installed using: `sudo apt install python-rdkit`
 
+Otherwise, please follow the instructions here: https://github.com/rdkit/rdkit
+
 Then you may install deriver using pip: `pip install deriver`
 
 # To-do:
