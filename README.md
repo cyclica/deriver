@@ -10,7 +10,9 @@ rdkit can be installed on Ubuntu 18.04 using the provided script:
 
 `mkdir ./rdkit`
 
-`./install-rdkit ./rdkit/` 
+Then source your virtualenv. Then:
+
+`./install-rdkit ./rdkit/ -p 3.6` 
 
 Otherwise, follow the instructions here: https://github.com/rdkit/rdkit
 
