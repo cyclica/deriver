@@ -1,13 +1,11 @@
 from rdkit import Chem
-from selfies import encoder, decoder
+from selfies import encoder, decoder, selfies_alphabet
 import re
 import random
 import logging as logger
 
 
-ALPHABET = ['Branch1_1', 'Branch1_2', 'Branch1_3', 'Ring1', 'Branch2_1', 'Branch2_2', 'Branch2_3',
-            'Ring2', 'Branch3_1', 'Branch3_2', 'Branch3_3', 'O', '=O', 'N', '=N', 'C', '=C',
-            '#C', 'S', '=S', 'P', 'F', 'C@Hexpl', 'C@@Hexpl', 'C@expl', 'C@@expl', 'H']
+ALPHABET = [symbol.strip("[]") for symbol in selfies_alphabet()]
 
 
 def selfies_substitution(*,
