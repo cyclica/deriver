@@ -1,1 +1,1 @@
-selfies
+selfies>=0.2.4
