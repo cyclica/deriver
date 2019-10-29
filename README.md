@@ -8,15 +8,10 @@ Requires `selfies` and `rdkit` to be installed.
 # Installation
 rdkit can be installed on Ubuntu 18.04 using the provided script: 
 
-`mkdir ./rdkit`
+https://github.com/cyclica/rdkit-installer
 
-Then source your virtualenv. Then:
-
-`./install-rdkit ./rdkit/ -p 3.6` 
-
-Otherwise, follow the instructions here: https://github.com/rdkit/rdkit
-
-Then you may install deriver using pip: `pip install deriver`
+Source that environment once created, then you may install deriver using pip: `pip install deriver`, or by cloning this 
+repo and from the cloned directory running: `pip install -e .`
 
 # To-do:
 * implement a random SELIFES generator method
