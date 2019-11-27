@@ -52,7 +52,9 @@ def selfies_substitution(*,
         "N": ["O", "C", "H"],
         "=N": ["=O", "O", "S", "=C", "C"],
         "#N": ["#C"],
-        "S": ["O", "N", "C", "=O", "=N", "H"]
+        "S": ["O", "N", "C", "=O", "=N", "H"],
+        "=S": ["=O", "=N", "=C", "O"],
+        "#C": ["#N"]
     }
 
     while spawns < n_children:  # try to produce the correct number of children
@@ -64,15 +66,16 @@ def selfies_substitution(*,
         while muts < mut_min:
             random.shuffle(mut_positions)  # shuffle the order so that mutations will be random
             for pos in mut_positions:  # try to mutate
-                if random.random() <= mut_rate:
-                    # ignore special symbols, leave them alone
-                    if not (symbols[pos] == "epsilon" or "Branch" in symbols[pos] or "Ring" in symbols[pos]):
-                        if symbols[pos] in allowed_subs:  # if we have rules for how to handle this symbol
-                            mutations.append(pos)  # record which symbol this is
-                            muts += 1  # record the intention to mutate
-                            if muts == mut_max:
-                                # when we're done, stop looking
-                                break
+                if pos not in mutations:
+                    if random.random() <= mut_rate:
+                        # ignore special symbols, leave them alone
+                        if not (symbols[pos] == "epsilon" or "Branch" in symbols[pos] or "Ring" in symbols[pos]):
+                            if symbols[pos] in allowed_subs:  # if we have rules for how to handle this symbol
+                                mutations.append(pos)  # record which symbol this is
+                                muts += 1  # record the intention to mutate
+                                if muts == mut_max:
+                                    # when we're done, stop looking
+                                    break
 
         # for each planned mutation, actually execute it, on the non-shuffled original SELFIES list
         for index in sorted(mutations, reverse=True):
@@ -151,12 +154,13 @@ def selfies_insertion(*,
         while muts < mut_min:
             random.shuffle(mut_positions)  # shuffle the order so that mutations will be random
             for pos in mut_positions:  # try to mutate
-                if random.random() <= mut_rate:
-                    mutations.append(pos)  # record which symbol this is
-                    muts += 1  # record the intention to mutate
-                    if muts == mut_max:
-                        # when we're done, stop looking
-                        break
+                if pos not in mutations:
+                    if random.random() <= mut_rate:
+                        mutations.append(pos)  # record which symbol this is
+                        muts += 1  # record the intention to mutate
+                        if muts == mut_max:
+                            # when we're done, stop looking
+                            break
 
         # for each planned mutation, actually execute it, on the non-shuffled original SELFIES list
         for index in sorted(mutations, reverse=True):
@@ -220,7 +224,6 @@ def selfies_deletion(*,
     parent_selfies = encoder(parent_smiles)
     symbols = re.findall(r"[^[]*\[([^]]*)\]", parent_selfies)   # get the SELFIES symbols into a list
 
-
     while spawns < n_children:  # try to produce the correct number of children
         muts = 0
         mutations = []  # which parts of the SELFIES to remove
@@ -230,12 +233,13 @@ def selfies_deletion(*,
         while muts < mut_min:
             random.shuffle(mut_positions)  # shuffle the order so that mutations will be random
             for pos in mut_positions:  # try to mutate
-                if random.random() <= mut_rate:
-                    mutations.append(pos)  # record which symbol this is
-                    muts += 1  # record the intention to mutate
-                    if muts == mut_max:
-                        # when we're done, stop looking
-                        break
+                if pos not in mutations:
+                    if random.random() <= mut_rate:
+                        mutations.append(pos)  # record which symbol this is
+                        muts += 1  # record the intention to mutate
+                        if muts == mut_max:
+                            # when we're done, stop looking
+                            break
 
         # for each planned mutation, actually execute it, on the non-shuffled original SELFIES list
         for index in sorted(mutations, reverse=True):
