@@ -2,7 +2,8 @@ import logging as logger
 from .child_filter import get_filter_values, apply_filter
 from .config import drug_like_params
 from rdkit import Chem
-from .selfies_methods import selfies_substitution, selfies_deletion, selfies_insertion, random_selfies_generator
+from .selfies_methods import selfies_substitution, selfies_deletion, selfies_insertion, random_selfies_generator, \
+    selfies_scanner
 from typing import List
 
 
@@ -273,5 +274,21 @@ class Deriver(object):
                     else:
                         good_children.append(child)
                         self.data.all_good_selfies_children.append(child)
+
+        return good_children
+
+    def scan_selfies(self):
+
+        """
+        Return all possible single substitution children for all the seeds.
+        """
+
+        good_children = []
+        self.data.all_good_selfies_children = []
+
+        for seed in self.data.seed_smiles:
+            children = selfies_scanner(parent_smiles=seed)
+            good_children += children
+            self.data.all_good_selfies_children.extend(children)
 
         return good_children
