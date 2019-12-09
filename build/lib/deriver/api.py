@@ -2,7 +2,8 @@ import logging as logger
 from .child_filter import get_filter_values, apply_filter
 from .config import drug_like_params
 from rdkit import Chem
-from .selfies_methods import selfies_substitution, selfies_deletion, selfies_insertion
+from .selfies_methods import selfies_substitution, selfies_deletion, selfies_insertion, random_selfies_generator, \
+    selfies_scanner
 from typing import List
 
 
@@ -242,10 +243,52 @@ class Deriver(object):
 
         return good_children
 
-    def random_selfies(self, *, n_symbols: int = 30, n_molecules: int = 100):
-        # call .selfies_methods.random_selfies_generation
-        # filter if filter enabled
-        # count good children
-        # repeat until target reached
-        # done
-        return NotImplementedError
+    def random_selfies(self, *, n_symbols: int = 100, n_molecules: int = 100):
+
+        good_children = []
+        rand_selfies_gen = random_selfies_generator(n_symbols=n_symbols)
+        self.data.all_good_selfies_children = []
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
+
+        while len(good_children) < n_molecules:
+            child_mols = [Chem.MolFromSmiles(next(rand_selfies_gen)) for i in range(n_molecules - len(good_children))]
+            # filter children
+            filtered_children = apply_filter(filter_params, child_mols, self.data.must_have_patterns)
+            # print(filtered_children)
+            for child in filtered_children:
+                if filtered_children[child]["is_good"]:
+                    # check the cache
+                    if self.data.filter_molecules:
+                        if child not in self.data.filter_molecules:
+                            good_children.append(child)
+                            self.data.all_good_selfies_children.append(child)
+                        else:
+                            logger.debug(f"skipping previously seen molecule: {child}")
+                    else:
+                        good_children.append(child)
+                        self.data.all_good_selfies_children.append(child)
+
+        return good_children
+
+    def scan_selfies(self):
+
+        """
+        Return all possible single substitution children for all the seeds.
+        """
+
+        good_children = []
+        self.data.all_good_selfies_children = []
+
+        for seed in self.data.seed_smiles:
+            children = selfies_scanner(parent_smiles=seed)
+            good_children += children
+            self.data.all_good_selfies_children.extend(children)
+
+        return good_children
