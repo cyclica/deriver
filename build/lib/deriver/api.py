@@ -282,13 +282,32 @@ class Deriver(object):
         """
         Return all possible single substitution children for all the seeds.
         """
-
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
         good_children = []
         self.data.all_good_selfies_children = []
 
         for seed in self.data.seed_smiles:
             children = selfies_scanner(parent_smiles=seed)
-            good_children += children
-            self.data.all_good_selfies_children.extend(children)
+            filtered_children = apply_filter(filter_params,
+                                             [Chem.MolFromSmiles(child) for child in children],
+                                             self.data.must_have_patterns)
+            for child in filtered_children:
+                if filtered_children[child]["is_good"]:
+                    # check the cache
+                    if self.data.filter_molecules:
+                        if child not in self.data.filter_molecules:
+                            good_children.append(child)
+                            self.data.all_good_selfies_children.append(child)
+                        else:
+                            logger.debug(f"skipping previously seen molecule: {child}")
+                    else:
+                        good_children.append(child)
+                        self.data.all_good_selfies_children.append(child)
 
         return good_children
