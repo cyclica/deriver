@@ -285,3 +285,47 @@ def random_selfies_generator(*, n_symbols: int = 100):
             continue
         else:
             yield child_smiles
+
+
+def selfies_scanner(*, parent_smiles: str):
+    # get the parent mol set up properly with defined aromaticity
+    parent_mol = Chem.MolFromSmiles(parent_smiles, sanitize=True)
+    Chem.rdmolops.Kekulize(parent_mol)
+    parent_smiles = Chem.MolToSmiles(parent_mol, isomericSmiles=True, kekuleSmiles=True)
+    logger.info(f"Generating children from: {parent_smiles}")
+
+    children = []  # finished children
+    spawns = 0  # counter for children produced
+    parent_selfies = encoder(parent_smiles)
+    symbols = re.findall(r"[^[]*\[([^]]*)\]", parent_selfies)  # get the SELFIES symbols into a list
+
+    for i, symb in enumerate(symbols):
+        if not (symb == "epsilon" or "Branch" in symb or "Ring" in symb):
+            if symb in ALLOWED_SUBS:  # if we have rules for how to handle this symbol
+                for replacement in ALLOWED_SUBS[symb]:
+                    mut_symbols = symbols.copy()  # don't manipulate the original
+                    mut_symbols[i] = replacement
+                    child_symbols = [f"[{symb}]" for symb in mut_symbols]
+                    child = "".join(child_symbols)
+                    child_smiles = decoder(child)  # get the smiles
+                    # test that smiles is valid
+                    try:
+                        # same as parent, have to have explicit aromaticity
+                        child_mol = Chem.MolFromSmiles(child_smiles, sanitize=True)
+                        Chem.rdmolops.Kekulize(child_mol)
+                        child_smiles = Chem.MolToSmiles(child_mol, isomericSmiles=True, kekuleSmiles=True)
+                        assert child_mol  # if MolToSmiles fails, it will be a None
+                        if child_smiles == parent_smiles:  # ignore this child if it's the same as the parent
+                            continue
+                    except Exception:  # pylint: disable=broad-except
+                        logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
+                        logger.warning(f"Child SELFIES: {child}")
+                        logger.warning(f"Parent SELFIES:{parent_selfies}")
+                        logger.warning(f"Child SMILES: {child_smiles}")
+                        logger.warning(f"Parent SMILES: {parent_smiles}")
+                        continue
+                    # Every good child deserves fudge
+                    children.append(child_smiles)
+                    spawns += 1  # update our counter
+
+    return children
