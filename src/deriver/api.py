@@ -184,6 +184,7 @@ class Deriver(object):
     def derive_selfies(self, n_children: int = 100, mut_rate: float = 0.03, mut_min: int = 1, mut_max: int = 2):
 
         good_children = []
+        self.data.all_good_selfies_children = []
         n_seeds = len(self.data.seed_smiles)
         if n_children < n_seeds:
             n_children_per_seed = 1
@@ -224,7 +225,6 @@ class Deriver(object):
 
             # filter children
             filtered_children = apply_filter(filter_params, child_mols, self.data.must_have_patterns)
-            self.data.all_good_selfies_children = []
 
             for child in filtered_children:
                 if filtered_children[child]["is_good"]:
