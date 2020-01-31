@@ -5,6 +5,7 @@ from rdkit import Chem
 from .selfies_methods import selfies_substitution, selfies_deletion, selfies_insertion, random_selfies_generator, \
     selfies_scanner
 from typing import List
+from collections import defaultdict
 
 
 class Deriver(object):
@@ -185,6 +186,7 @@ class Deriver(object):
 
         good_children = []
         self.data.all_good_selfies_children = []
+        self.data.heritage = defaultdict(list)
         n_seeds = len(self.data.seed_smiles)
         if n_children < n_seeds:
             n_children_per_seed = 1
@@ -207,6 +209,7 @@ class Deriver(object):
                                                 mut_rate=mut_rate,
                                                 mut_min=mut_min,
                                                 mut_max=mut_max)
+            self.data.heritage[seed] += children
             child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_insertion(parent_smiles=seed,
@@ -214,6 +217,7 @@ class Deriver(object):
                                                 mut_rate=mut_rate,
                                                 mut_min=mut_min,
                                                 mut_max=mut_max)
+            self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_deletion(parent_smiles=seed,
@@ -221,6 +225,7 @@ class Deriver(object):
                                                 mut_rate=mut_rate,
                                                 mut_min=mut_min,
                                                 mut_max=mut_max)
+            self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             # filter children
