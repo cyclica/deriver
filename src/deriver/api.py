@@ -185,6 +185,7 @@ class Deriver(object):
     def derive_selfies(self, n_children: int = 100, mut_rate: float = 0.03, mut_min: int = 1, mut_max: int = 2):
 
         good_children = []
+        filtered_children = {}
         self.data.all_good_selfies_children = []
         self.data.heritage = defaultdict(list)
         n_seeds = len(self.data.seed_smiles)
@@ -246,7 +247,7 @@ class Deriver(object):
 
         logger.info(f"Generated {len(good_children)} 'good' children.")
 
-        return good_children
+        return good_children, filtered_children
 
     def random_selfies(self, *, n_symbols: int = 100, n_molecules: int = 100):
 
@@ -295,6 +296,7 @@ class Deriver(object):
                            " in order to use a filter for drug-likeness.")
             filter_params = None
         good_children = []
+        filtered_children = {}
         self.data.all_good_selfies_children = []
 
         for seed in self.data.seed_smiles:
@@ -315,4 +317,4 @@ class Deriver(object):
                         good_children.append(child)
                         self.data.all_good_selfies_children.append(child)
 
-        return good_children
+        return good_children, filtered_children
