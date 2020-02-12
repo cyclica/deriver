@@ -303,6 +303,8 @@ class Deriver(object):
 
         for seed in self.data.seed_smiles:
             children = selfies_scanner(parent_smiles=seed)
+            self.data.heritage[seed] += children
+
             filtered_children = apply_filter(filter_params,
                                              [Chem.MolFromSmiles(child) for child in children],
                                              self.data.must_have_patterns)
