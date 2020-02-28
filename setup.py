@@ -4,11 +4,11 @@ from setuptools import find_packages
 setup(name='deriver',
       description='Deriver: for all your molecule generation needs.',
       long_description='A software tool for the generation of novel chemical entities.',
-      version='2.0.1',
+      version='2.1.0',
       url='https://github.com/cyclica/deriver',
       license='All Rights Reserved Cyclica Inc.',
       packages=find_packages('src'),
       package_dir={'': 'src'},
       zip_safe=False,
-      install_requires=["selfies>=0.2.4"]
+      install_requires=["selfies>=0.2.4", "peewee>=3.9.3", "numpy>=1.16.3"]
       )
