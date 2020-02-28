@@ -6,6 +6,13 @@ from .selfies_methods import selfies_substitution, selfies_deletion, selfies_ins
     selfies_scanner
 from typing import List, Set
 from collections import defaultdict
+from .fragment import libgen
+from peewee import SqliteDatabase
+from .lib_read import lib_read
+import re
+from .fragment_index import frag_index
+from .mate import mate
+import os
 
 
 class Deriver(object):
@@ -400,77 +407,77 @@ class Deriver(object):
         logger.info(f"Done! There are {len(self.data.seed_frags)} seed fragments ready to be mated.")
         # it is faster to keep these in memory rather than using the database
 
-        def derive_brics(self, n_children: int = 100, permissivity: float = 1.0):
-            """
+    def derive_brics(self, n_children: int = 100, permissivity: float = 1.0):
+        """
 
-            :param n_children: How many children do you want, in total. This is an approximation, not exact.
-            :param permissivity: How unlike the parent molecules is the child allowed to be, higher is generally larger
-            :return: (all_good_children [a list of smiles], all_filtered_children [a dict of values about the molecules])
-            """
-            # process the seeds
-            self._process_seeds_for_brics()
+        :param n_children: How many children do you want, in total. This is an approximation, not exact.
+        :param permissivity: How unlike the parent molecules is the child allowed to be, higher is generally larger
+        :return: (all_good_children [a list of smiles], all_filtered_children [a dict of values about the molecules])
+        """
+        # process the seeds
+        self._process_seeds_for_brics()
 
-            # get the "maximum number of children" per fragment
-            n_seed_frags = len(self.data.seed_frags)
+        # get the "maximum number of children" per fragment
+        n_seed_frags = len(self.data.seed_frags)
 
-            if self.data.filter:
-                filter_params = self.data.filter_params
-            else:
-                logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                               " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                               " in order to use a filter for drug-likeness.")
-                filter_params = None
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
 
-            if n_children < n_seed_frags:
-                children_per_seed_frag = 1
-            else:
-                children_per_seed_frag = round(n_children / n_seed_frags) + 1
+        if n_children < n_seed_frags:
+            children_per_seed_frag = 1
+        else:
+            children_per_seed_frag = round(n_children / n_seed_frags) + 1
 
-            logger.info(f"Creating/reading a fragment index for {self.data.fragment_source_db}")
-            # generate the frag index once, first, so it doesn't get generated in each pool process
-            # this index serves to dramatically speed up queries
-            frag_index(self.data.fragment_source_db)
+        logger.info(f"Creating/reading a fragment index for {self.data.fragment_source_db}")
+        # generate the frag index once, first, so it doesn't get generated in each pool process
+        # this index serves to dramatically speed up queries
+        frag_index(self.data.fragment_source_db)
 
-            # again this is more of a guideline
-            logger.info(f"Mating to create {children_per_seed_frag} children per seed frag.")
+        # again this is more of a guideline
+        logger.info(f"Mating to create {children_per_seed_frag} children per seed frag.")
 
-            all_filtered_children = dict()  # the filter returns a dictionary of calculated pk values and filter status
+        all_filtered_children = dict()  # the filter returns a dictionary of calculated pk values and filter status
 
-            for seed_frag_smile, seed_frag_num_pa, missing_p_fc, missing_p_len, parent_smile in self.data.seed_frags:
-                try:
-                    res = mate(self.data.fragment_source_db,
-                               seed_frag_smile,
-                               seed_frag_num_pa,
-                               missing_p_fc,
-                               missing_p_len,
-                               permissivity,
-                               children_per_seed_frag,
-                               filter_params,
-                               self.data.must_have_patterns)
+        for seed_frag_smile, seed_frag_num_pa, missing_p_fc, missing_p_len, parent_smile in self.data.seed_frags:
+            try:
+                res = mate(self.data.fragment_source_db,
+                           seed_frag_smile,
+                           seed_frag_num_pa,
+                           missing_p_fc,
+                           missing_p_len,
+                           permissivity,
+                           children_per_seed_frag,
+                           filter_params,
+                           self.data.must_have_patterns)
 
-                    _, filter_values = res  # we only care about the filter dict, since it has everything
-                    all_filtered_children.update(filter_values)  # update our master dict
-                    self.data.heritage[parent_smile] += list(filter_values.keys())  # this keeps track of heritage
-                except IndexError as e:
-                    # This bug has never really been explored that much.
-                    logger.warning(f"Error when trying to mate a molecule, ignoring this molecule. Error: {e}")
+                _, filter_values = res  # we only care about the filter dict, since it has everything
+                all_filtered_children.update(filter_values)  # update our master dict
+                self.data.heritage[parent_smile] += list(filter_values.keys())  # this keeps track of heritage
+            except IndexError as e:
+                # This bug has never really been explored that much.
+                logger.warning(f"Error when trying to mate a molecule, ignoring this molecule. Error: {e}")
 
-            all_good_children = []
-            self.data.all_good_brics_children = []  # every time you call `derive_brics` it deletes any old results
-            for child in all_filtered_children:
-                if all_filtered_children[child]["is_good"]:
-                    # check the cache of previously seen molecules (which we want to avoid reproducing)
-                    if self.data.filter_molecules:
-                        if child not in self.data.filter_molecules:
-                            all_good_children.append(child)
-                            self.data.all_good_brics_children.append(child)
-                        else:
-                            logger.debug(f"skipping previously seen molecule: {child}")
-                    else:
-                        # there is no provided list of molecules to skip
+        all_good_children = []
+        self.data.all_good_brics_children = []  # every time you call `derive_brics` it deletes any old results
+        for child in all_filtered_children:
+            if all_filtered_children[child]["is_good"]:
+                # check the cache of previously seen molecules (which we want to avoid reproducing)
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
                         all_good_children.append(child)
                         self.data.all_good_brics_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    # there is no provided list of molecules to skip
+                    all_good_children.append(child)
+                    self.data.all_good_brics_children.append(child)
 
-            logger.info(f"Generated {len(self.data.all_good_brics_children)} 'good' children.")
+        logger.info(f"Generated {len(self.data.all_good_brics_children)} 'good' children.")
 
-            return all_good_children, all_filtered_children
+        return all_good_children, all_filtered_children
