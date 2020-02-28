@@ -55,7 +55,7 @@ class RecomposerMol(object):
     init_mol = None  # rdkit mol object of this molecule
     edges = []  # basically where are all the bonds
     fc0_index = {}  # given a specific pseudoatom, which fc0 fragment has it
-    frag_cache = []  # previously seen fragments (no need to build up from them twice)
+    frag_cache = []  # previously seen fragments (no need to build up from them twice) (can't be a set, dicts inside)
     brics_legend = {}  # which BRICS pseudoatom type is each pseudoatom, needed to rebuild at the end
 
     def __eq__(self, item):
@@ -127,7 +127,7 @@ class RecomposerMol(object):
         newMol.atoms = atoms  # setting these like this prevents reference errors
         newMol.atomCounter = Counter(mol.GetNumAtoms())
         newMol.pseudoIndex = pseudoIndex  # likewise here
-        newMol.frag_cache = [{}]  # honestly, I don't remember why there needs to be a dict in here. BUT THERE DOES
+        newMol.frag_cache = [{}]  # the parent mol always has an empty pseudoindex
         return newMol
 
     def addPseudoAtom(self, isotope):
