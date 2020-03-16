@@ -48,11 +48,6 @@ def clean(db_loc):
         )
         bad_heritage.execute()
 
-        bad_heritage_parent = Heritage.delete().where(
-            (Heritage.parent.not_in(Fragment.select()))
-        )
-        bad_heritage_parent.execute()
-
     logger.info("Done.")
 
 
