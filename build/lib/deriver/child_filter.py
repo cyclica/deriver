@@ -82,7 +82,7 @@ def apply_filter(final_limits, children, must_have_patterns: List[str] = None):
 
     assert isinstance(children, list)
     assert isinstance(children[0], Chem.Mol)
-    assert isinstance(final_limits, dict)
+    assert isinstance(final_limits, dict) or (final_limits is None)
 
     # compute the values to check for all the children
     child_values = {}
@@ -93,6 +93,8 @@ def apply_filter(final_limits, children, must_have_patterns: List[str] = None):
             pass
         else:
             child_values[smile] = get_filter_values(child)
+    if final_limits is None:
+        return child_values
 
     # actually filter the children here
     # record each reason why a child violates the filter rules

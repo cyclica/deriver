@@ -4,7 +4,15 @@ from .config import drug_like_params
 from rdkit import Chem
 from .selfies_methods import selfies_substitution, selfies_deletion, selfies_insertion, random_selfies_generator, \
     selfies_scanner
-from typing import List
+from typing import List, Set
+from collections import defaultdict
+from .fragment import libgen
+from peewee import SqliteDatabase
+from .lib_read import lib_read
+import re
+from .fragment_index import frag_index
+from .mate import mate
+import os
 
 
 class Deriver(object):
@@ -30,8 +38,15 @@ class Deriver(object):
             self.filter = False
             self.child_db = None
             self.all_good_selfies_children = None
+            self.all_good_scanner_children = None
             self.filter_molecules = None
             self.must_have_patterns = None
+            self.heritage = defaultdict(list)
+            # BRICS specific
+            self.seed_frags = None  # these are the fragments of the seed molecules
+            self.fragment_source_db = None  # this is the location of the fragment DB
+            self.seed_frag_db = None  # the is the DB where the seed_frags are stored and info about them
+            self.all_good_brics_children = None  # this is where the good (filtered) BRICS children are saved
 
     def set_seeds(self, seeds: list):
 
@@ -70,9 +85,9 @@ class Deriver(object):
             raise TypeError("must_have_patterns must be None or a list of SMARTS strings")
         self.data.must_have_patterns = must_have_patterns
 
-    def set_filter_molecules(self, filter_molecules: List[str]):
-        assert isinstance(filter_molecules, list)
-        assert isinstance(filter_molecules[0], str)
+    def set_filter_molecules(self, filter_molecules: Set[str]):
+        assert isinstance(filter_molecules, set)
+        assert isinstance(iter(filter_molecules).__next__(), str)
         self.data.filter_molecules = filter_molecules
         return 1
 
@@ -184,6 +199,7 @@ class Deriver(object):
     def derive_selfies(self, n_children: int = 100, mut_rate: float = 0.03, mut_min: int = 1, mut_max: int = 2):
 
         good_children = []
+        all_filtered_children = {}
         self.data.all_good_selfies_children = []
         n_seeds = len(self.data.seed_smiles)
         if n_children < n_seeds:
@@ -207,6 +223,7 @@ class Deriver(object):
                                                 mut_rate=mut_rate,
                                                 mut_min=mut_min,
                                                 mut_max=mut_max)
+            self.data.heritage[seed] += children
             child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_insertion(parent_smiles=seed,
@@ -214,6 +231,7 @@ class Deriver(object):
                                                 mut_rate=mut_rate,
                                                 mut_min=mut_min,
                                                 mut_max=mut_max)
+            self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_deletion(parent_smiles=seed,
@@ -221,10 +239,12 @@ class Deriver(object):
                                                 mut_rate=mut_rate,
                                                 mut_min=mut_min,
                                                 mut_max=mut_max)
+            self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             # filter children
             filtered_children = apply_filter(filter_params, child_mols, self.data.must_have_patterns)
+            all_filtered_children.update(filtered_children)
 
             for child in filtered_children:
                 if filtered_children[child]["is_good"]:
@@ -241,7 +261,7 @@ class Deriver(object):
 
         logger.info(f"Generated {len(good_children)} 'good' children.")
 
-        return good_children
+        return good_children, all_filtered_children
 
     def random_selfies(self, *, n_symbols: int = 100, n_molecules: int = 100):
 
@@ -261,7 +281,7 @@ class Deriver(object):
             child_mols = [Chem.MolFromSmiles(next(rand_selfies_gen)) for i in range(n_molecules - len(good_children))]
             # filter children
             filtered_children = apply_filter(filter_params, child_mols, self.data.must_have_patterns)
-            # print(filtered_children)
+
             for child in filtered_children:
                 if filtered_children[child]["is_good"]:
                     # check the cache
@@ -290,24 +310,174 @@ class Deriver(object):
                            " in order to use a filter for drug-likeness.")
             filter_params = None
         good_children = []
-        self.data.all_good_selfies_children = []
+        self.data.all_good_scanner_children = []
+        all_filtered_children = {}
 
         for seed in self.data.seed_smiles:
             children = selfies_scanner(parent_smiles=seed)
+            self.data.heritage[seed] += children
+
             filtered_children = apply_filter(filter_params,
                                              [Chem.MolFromSmiles(child) for child in children],
                                              self.data.must_have_patterns)
+            all_filtered_children.update(filtered_children)
+
             for child in filtered_children:
                 if filtered_children[child]["is_good"]:
                     # check the cache
                     if self.data.filter_molecules:
                         if child not in self.data.filter_molecules:
                             good_children.append(child)
-                            self.data.all_good_selfies_children.append(child)
+                            self.data.all_good_scanner_children.append(child)
                         else:
                             logger.debug(f"skipping previously seen molecule: {child}")
                     else:
                         good_children.append(child)
-                        self.data.all_good_selfies_children.append(child)
+                        self.data.all_good_scanner_children.append(child)
 
-        return good_children
+        return good_children, all_filtered_children
+
+    def set_fragment_source_db(self, frag_db):
+
+        """
+        set the location for the fragment database that is used to mate molecules
+        :param frag_db:
+        :return:
+        """
+
+        self.data.fragment_source_db = frag_db
+        return 1
+
+    def _process_seeds_for_brics(self):
+        """
+        This function parses the seed molecules and gets the BRICS fragments they make, then cleans them
+        :return:
+        """
+        logger.info("Processing seeds to create scaffold fragments:")
+
+        self.data.seed_frag_db = "seed_frags.db"
+        self.data.seed_frags = []
+
+        # Databases are used in lieu of alternatives (like dataframes) in order to operate on larger datasets
+        # where memory may be a bottleneck, and to ensure that only one source of truth exists for performing
+        # this calculation.
+        libgen(self.data.seed_mols, self.data.seed_frag_db)  # libgen is the basic command that generates frag libraries
+        seed_frag_db = SqliteDatabase(self.data.seed_frag_db)  # load the db we just made
+        Fragment, Heritage, _, _ = lib_read(seed_frag_db)  # we only care about fragment and heritage at this point
+        seed_frag_db.connect()
+
+        # get all the fragments from the user molecule
+        user_frags = \
+            (Fragment.select()
+             .join(Heritage, on=Heritage.frag)
+             .where(Heritage.parent != Heritage.frag)  # only get fragments, not intact molecules
+             .order_by(Fragment.frag_coeff.desc()))  # largest and most complex frags first
+
+        # for every fragment from the user provided parent mol
+        for user_frag in user_frags:
+
+            # we want to ignore really small fragments, by counting atom symbols
+            smaller_smile = re.sub(r"\[[0-9]+\*\]", "", user_frag.smile)  # ignore pseudoatoms
+            smaller_smile = re.sub(r"[0-9]", "", smaller_smile)  # ignore numbers in general
+            smaller_smile = re.sub(r"[\(\)=#@\-\]\[]+", "", smaller_smile)  # ignore a bunch of other symbols
+            if len(smaller_smile) < 4:  # if there are less than four atoms
+                logger.warning(f"Skipping user_frag {user_frag.smile} due to size.")
+                continue
+
+            # using this fragment and the whole parent molecule, estimate the "missing" FC and size
+            parent = Heritage.get(Heritage.frag_id == user_frag.id).parent
+            if parent is not None:
+                missing_piece_fc = (parent.frag_coeff - user_frag.frag_coeff) - 1.0  # -1.0 because two pieces combine
+                missing_piece_len = len(parent.smile) - len(user_frag.smile)  # approximation
+            else:
+                missing_piece_fc = 3.0  # approximation
+                missing_piece_len = 40  # approximation
+
+            # this is what we are going to keep
+            seed_frag = (user_frag.smile,
+                         user_frag.num_pseudo_atoms,
+                         missing_piece_fc,
+                         missing_piece_len,
+                         parent.smile)
+
+            self.data.seed_frags.append(seed_frag)
+
+        seed_frag_db.close()
+        os.remove(self.data.seed_frag_db)  # we don't really care to keep the seed fragment database
+        logger.info(f"Done! There are {len(self.data.seed_frags)} seed fragments ready to be mated.")
+        # it is faster to keep these in memory rather than using the database
+
+    def derive_brics(self, n_children: int = 100, permissivity: float = 1.0):
+        """
+
+        :param n_children: How many children do you want, in total. This is an approximation, not exact.
+        :param permissivity: How unlike the parent molecules is the child allowed to be, higher is generally larger
+        :return: (all_good_children [a list of smiles], all_filtered_children [a dict of values about the molecules])
+        """
+        # process the seeds
+        self._process_seeds_for_brics()
+
+        # get the "maximum number of children" per fragment
+        n_seed_frags = len(self.data.seed_frags)
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
+
+        if n_children < n_seed_frags:
+            children_per_seed_frag = 1
+        else:
+            children_per_seed_frag = round(n_children / n_seed_frags) + 1
+
+        logger.info(f"Creating/reading a fragment index for {self.data.fragment_source_db}")
+        # generate the frag index once, first, so it doesn't get generated in each pool process
+        # this index serves to dramatically speed up queries
+        frag_index(self.data.fragment_source_db)
+
+        # again this is more of a guideline
+        logger.info(f"Mating to create {children_per_seed_frag} children per seed frag.")
+
+        all_filtered_children = dict()  # the filter returns a dictionary of calculated pk values and filter status
+
+        for seed_frag_smile, seed_frag_num_pa, missing_p_fc, missing_p_len, parent_smile in self.data.seed_frags:
+            try:
+                res = mate(self.data.fragment_source_db,
+                           seed_frag_smile,
+                           seed_frag_num_pa,
+                           missing_p_fc,
+                           missing_p_len,
+                           permissivity,
+                           children_per_seed_frag,
+                           filter_params,
+                           self.data.must_have_patterns)
+
+                _, filter_values = res  # we only care about the filter dict, since it has everything
+                all_filtered_children.update(filter_values)  # update our master dict
+                self.data.heritage[parent_smile] += list(filter_values.keys())  # this keeps track of heritage
+            except IndexError as e:
+                # This bug has never really been explored that much.
+                logger.warning(f"Error when trying to mate a molecule, ignoring this molecule. Error: {e}")
+
+        all_good_children = []
+        self.data.all_good_brics_children = []  # every time you call `derive_brics` it deletes any old results
+        for child in all_filtered_children:
+            if all_filtered_children[child]["is_good"]:
+                # check the cache of previously seen molecules (which we want to avoid reproducing)
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
+                        all_good_children.append(child)
+                        self.data.all_good_brics_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    # there is no provided list of molecules to skip
+                    all_good_children.append(child)
+                    self.data.all_good_brics_children.append(child)
+
+        logger.info(f"Generated {len(self.data.all_good_brics_children)} 'good' children.")
+
+        return all_good_children, all_filtered_children
