@@ -13,6 +13,7 @@ from rdkit.Chem import BRICS
 import logging as logger
 from copy import deepcopy
 import re
+from .clean_frag_db import clean
 
 # set up rdkit logger to ignore WARNINGS (it was so irritating (and possibly responsible for a slight slowdown))
 lg = RDLogger.logger()
@@ -374,79 +375,80 @@ class RecomposerMol(object):
         :return: frag_list, heritage_list, atoms_list, pseudo_atoms_list (lists of dictionaries matching models)
         """
         self.get_fc0_frags()  # always do this first
+        max_fc = min(len(self.edges), max_fc)
         if len(self.edges) > 1:  # if there is more than one brics bond
             self.get_fc1_frags()
         if len(self.edges) > 2:  # if there are more than two brics bonds
             for i in range(1, max_fc):
                 self.get_next_fc_level_frags(fc=i)
 
-        if len(self.edges) > 0:
-            # these will store the dictionaries the database code expects
-            frag_list = []
-            heritage_list = []
-            atoms_list = []
-            pseudo_atoms_list = []
+        # these will store the dictionaries the database code expects
+        frag_list = []
+        heritage_list = []
+        atoms_list = []
+        pseudo_atoms_list = []
 
-            # using this function to avoid copying code
-            def insert_mol_info(mol, fc, curr_id, parent_id):
+        # using this function to avoid copying code
+        def insert_mol_info(mol, fc, curr_id, parent_id):
 
-                seen_ps = set()
-                seen_atom = set()
-                num_pseudo_atoms = 0
-                num_unique_pseudo_atoms = 0
-                has_only_good_atoms = True
+            seen_ps = set()
+            seen_atom = set()
+            num_pseudo_atoms = 0
+            num_unique_pseudo_atoms = 0
+            has_only_good_atoms = True
 
-                # sanity checking to see if this is a fragment we want to use for making molecules
-                for atom in mol.GetAtoms():
-                    symbol = atom.GetSymbol()
-                    if symbol not in allowed_atoms:
-                        has_only_good_atoms = False
-                        break
-                    atomic_num = atom.GetAtomicNum()
-                    ps_num = atom.GetIsotope()
+            # sanity checking to see if this is a fragment we want to use for making molecules
+            for atom in mol.GetAtoms():
+                symbol = atom.GetSymbol()
+                if symbol not in allowed_atoms:
+                    has_only_good_atoms = False
+                    break
+                atomic_num = atom.GetAtomicNum()
+                ps_num = atom.GetIsotope()
 
-                    # storing info about each atom
-                    if symbol not in seen_atom and atomic_num != 0:
-                        atoms_list.append({
-                            'frag': curr_id,
-                            'atom': symbol
-                        })
-                        seen_atom.add(symbol)
-                    if atomic_num == 0:
-                        num_pseudo_atoms += 1
-                        pseudo_atoms_list.append({
-                            'frag': curr_id,
-                            'pseudo_atom': ps_num
-                        })
-                        if ps_num not in seen_ps:
-                            num_unique_pseudo_atoms += 1
-                            seen_ps.add(ps_num)
-
-                # yeah we'll take it
-                if has_only_good_atoms:
-                    frag_list.append({
-                        'id': curr_id,
-                        'smile': Chem.MolToSmiles(mol, isomericSmiles=True),
-                        'frag_coeff': fc,
-                        'num_pseudo_atoms': num_pseudo_atoms,
-                        'num_unique_pseudo_atoms': num_unique_pseudo_atoms
-                    })
-                    heritage_list.append({
+                # storing info about each atom
+                if symbol not in seen_atom and atomic_num != 0:
+                    atoms_list.append({
                         'frag': curr_id,
-                        'parent': parent_id
+                        'atom': symbol
                     })
+                    seen_atom.add(symbol)
+                if atomic_num == 0:
+                    num_pseudo_atoms += 1
+                    pseudo_atoms_list.append({
+                        'frag': curr_id,
+                        'pseudo_atom': ps_num
+                    })
+                    if ps_num not in seen_ps:
+                        num_unique_pseudo_atoms += 1
+                        seen_ps.add(ps_num)
 
-            # insert parent first, since the fragments refer to the parent_id
-            parent_id = ID_COUNTER.increment()
-            insert_mol_info(self.init_mol, len(self.edges), parent_id, parent_id)  # parents have a frag_id == parent_id
-            # insert all sub fragments
-            for fc, frag_group in self.fragments.items():
-                for frag in frag_group:
-                    curr_id = ID_COUNTER.increment()
-                    insert_mol_info(frag.toMol(), fc, curr_id, parent_id)
-            return frag_list, heritage_list, atoms_list, pseudo_atoms_list
-        else:  # no fragments possible
-            return [], [], [], []
+            # yeah we'll take it
+            if has_only_good_atoms:
+                frag_list.append({
+                    'id': curr_id,
+                    'smile': Chem.MolToSmiles(mol, isomericSmiles=True),
+                    'frag_coeff': fc,
+                    'num_pseudo_atoms': num_pseudo_atoms,
+                    'num_unique_pseudo_atoms': num_unique_pseudo_atoms
+                })
+                heritage_list.append({
+                    'frag': curr_id,
+                    'parent': parent_id
+                })
+
+        # insert parent first, since the fragments refer to the parent_id
+        parent_id = ID_COUNTER.increment()
+        curr_id = parent_id
+        insert_mol_info(self.init_mol, len(self.edges), curr_id, parent_id)  # parents have a frag_id == parent_id
+        curr_id = ID_COUNTER.increment()
+        # insert all sub fragments
+        for fc in range(max_fc):
+            frag_group = self.fragments[fc]
+            for frag in frag_group:
+                insert_mol_info(frag.toMol(), fc, curr_id, parent_id)
+                curr_id = ID_COUNTER.increment()
+        return frag_list, heritage_list, atoms_list, pseudo_atoms_list
 
     def toMol(self):
         """
@@ -556,8 +558,6 @@ def libgen(mol_list, output_name):
                 query = Atoms.replace_many(ents)
                 query.execute()
     db.close()
-
-    # automatically clean the fragment library
     clean(output_name)
 
     return 1
