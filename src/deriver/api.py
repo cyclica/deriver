@@ -244,7 +244,7 @@ class Deriver(object):
 
             # filter children
             filtered_children = apply_filter(filter_params, child_mols, self.data.must_have_patterns)
-            all_filtered_children += filtered_children
+            all_filtered_children.update(filtered_children)
 
             for child in filtered_children:
                 if filtered_children[child]["is_good"]:
@@ -320,7 +320,7 @@ class Deriver(object):
             filtered_children = apply_filter(filter_params,
                                              [Chem.MolFromSmiles(child) for child in children],
                                              self.data.must_have_patterns)
-            all_filtered_children += filtered_children
+            all_filtered_children.update(filtered_children)
 
             for child in filtered_children:
                 if filtered_children[child]["is_good"]:
