@@ -5,7 +5,6 @@ from argparse import ArgumentParser
 from collections import deque
 from playhouse.sqlite_ext import SqliteExtDatabase
 from .lib_read import lib_read
-from .clean_frag_db import clean
 from peewee import chunked
 from rdkit import RDLogger
 from rdkit import Chem

@@ -219,26 +219,26 @@ class Deriver(object):
 
         for seed in self.data.seed_smiles:
             children = selfies_substitution(parent_smiles=seed,
-                                                n_children=round(n_children_per_seed * 0.7),  # three internal methods
-                                                mut_rate=mut_rate,
-                                                mut_min=mut_min,
-                                                mut_max=mut_max)
+                                            n_children=round(n_children_per_seed * 0.7),  # three internal methods
+                                            mut_rate=mut_rate,
+                                            mut_min=mut_min,
+                                            mut_max=mut_max)
             self.data.heritage[seed] += children
             child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_insertion(parent_smiles=seed,
-                                                n_children=round(n_children_per_seed * 0.15),  # three internal methods
-                                                mut_rate=mut_rate,
-                                                mut_min=mut_min,
-                                                mut_max=mut_max)
+                                         n_children=round(n_children_per_seed * 0.15),  # three internal methods
+                                         mut_rate=mut_rate,
+                                         mut_min=mut_min,
+                                         mut_max=mut_max)
             self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_deletion(parent_smiles=seed,
-                                                n_children=round(n_children_per_seed * 0.15),  # three internal methods
-                                                mut_rate=mut_rate,
-                                                mut_min=mut_min,
-                                                mut_max=mut_max)
+                                        n_children=round(n_children_per_seed * 0.15),  # three internal methods
+                                        mut_rate=mut_rate,
+                                        mut_min=mut_min,
+                                        mut_max=mut_max)
             self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
