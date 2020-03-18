@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from collections import deque
 from playhouse.sqlite_ext import SqliteExtDatabase
 from .lib_read import lib_read
+from .clean_frag_db import clean
 from peewee import chunked
 from rdkit import RDLogger
 from rdkit import Chem
@@ -583,7 +584,7 @@ def get_pseudo_atoms(smile):
 
 
 if __name__ == "__main__":
-    # one of the only CLIs here. Just for convenience. Calls libgen on an input file. Please clean it after.
+    # one of the only CLIs here. Just for convenience. Calls libgen on an input file. Now automatically cleaned
     parser = ArgumentParser()
     parser.add_argument('-i',
                         dest="input",
