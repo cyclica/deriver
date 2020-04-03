@@ -41,6 +41,7 @@ class Deriver(object):
             self.all_good_scanner_children = None
             self.filter_molecules = None
             self.must_have_patterns = None
+            self.must_not_have_patterns = None
             self.heritage = defaultdict(list)
             # BRICS specific
             self.seed_frags = None  # these are the fragments of the seed molecules
@@ -84,6 +85,15 @@ class Deriver(object):
         else:
             raise TypeError("must_have_patterns must be None or a list of SMARTS strings")
         self.data.must_have_patterns = must_have_patterns
+
+    def set_must_not_have_patterns(self, must_not_have_patterns: List[str]):
+        if isinstance(must_not_have_patterns, list):
+            assert isinstance(must_not_have_patterns[0], str)
+        elif must_not_have_patterns is None:
+            pass
+        else:
+            raise TypeError("must_have_patterns must be None or a list of SMARTS strings")
+        self.data.must_not_have_patterns = must_not_have_patterns
 
     def set_filter_molecules(self, filter_molecules: Set[str]):
         assert isinstance(filter_molecules, set)
@@ -243,7 +253,11 @@ class Deriver(object):
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             # filter children
-            filtered_children = apply_filter(filter_params, child_mols, self.data.must_have_patterns)
+            filtered_children = apply_filter(filter_params,
+                                             child_mols,
+                                             self.data.must_have_patterns,
+                                             self.data.must_not_have_patterns
+                                             )
             all_filtered_children.update(filtered_children)
 
             for child in filtered_children:
@@ -280,7 +294,11 @@ class Deriver(object):
         while len(good_children) < n_molecules:
             child_mols = [Chem.MolFromSmiles(next(rand_selfies_gen)) for i in range(n_molecules - len(good_children))]
             # filter children
-            filtered_children = apply_filter(filter_params, child_mols, self.data.must_have_patterns)
+            filtered_children = apply_filter(filter_params,
+                                             child_mols,
+                                             self.data.must_have_patterns,
+                                             self.data.must_not_have_patterns
+                                             )
 
             for child in filtered_children:
                 if filtered_children[child]["is_good"]:
@@ -319,7 +337,9 @@ class Deriver(object):
 
             filtered_children = apply_filter(filter_params,
                                              [Chem.MolFromSmiles(child) for child in children],
-                                             self.data.must_have_patterns)
+                                             self.data.must_have_patterns,
+                                             self.data.must_not_have_patterns
+                                             )
             all_filtered_children.update(filtered_children)
 
             for child in filtered_children:
@@ -453,7 +473,8 @@ class Deriver(object):
                            permissivity,
                            children_per_seed_frag,
                            filter_params,
-                           self.data.must_have_patterns)
+                           self.data.must_have_patterns,
+                           self.data.must_not_have_patterns)
 
                 _, filter_values = res  # we only care about the filter dict, since it has everything
                 all_filtered_children.update(filter_values)  # update our master dict

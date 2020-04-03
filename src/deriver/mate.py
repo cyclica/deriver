@@ -57,7 +57,8 @@ def mate(db,
          permissivity=1.0,
          max_num_children=25,
          final_limits=None,
-         must_have_patterns=None
+         must_have_patterns=None,
+         must_not_have_patterns=None
          ):
     """
     mate()
@@ -245,7 +246,10 @@ def mate(db,
 
     logger.info(f"Finished Mating {user_smile}. Produced {len(finished_children)} children.")
     # pre-filter the children of this parent
-    pre_filter_values = apply_filter(final_limits, finished_children, must_have_patterns=must_have_patterns)
+    pre_filter_values = apply_filter(final_limits,
+                                     finished_children,
+                                     must_have_patterns=must_have_patterns,
+                                     must_not_have_patterns=must_not_have_patterns)
 
     return finished_children, pre_filter_values
 
