@@ -450,9 +450,6 @@ class Deriver(object):
 
         if n_children < n_seed_frags:
             children_per_seed_frag = 1
-        elif n_seed_frags == 0:
-            logger.warning('No valid seed fragments were created. Returning empty lists')
-            return [], []
         else:
             children_per_seed_frag = round(n_children / n_seed_frags) + 1
 
