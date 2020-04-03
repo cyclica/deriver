@@ -11,7 +11,7 @@ import copy
 
 alerts = pd.read_csv(os.path.join(os.path.dirname(__file__), 'data/alert_collection.csv'))
 pains = alerts.loc[alerts['rule_set_name'] == 'PAINS', 'smarts']
-glaxo = alerts.loc[alerts['rule_set_name'] == 'glaxo', 'smarts']
+glaxo = alerts.loc[alerts['rule_set_name'] == 'Glaxo', 'smarts']
 always_filter = {'PAINS': pains, 'glaxo': glaxo}
 
 
@@ -91,6 +91,8 @@ def apply_filter(final_limits, children, must_have_patterns: List[str] = None, m
     assert isinstance(children, list)
     assert isinstance(children[0], Chem.Mol)
     assert isinstance(final_limits, dict) or (final_limits is None)
+    if not must_not_have_patterns:
+        must_not_have_patterns = []
 
     # compute the values to check for all the children
     child_values = {}

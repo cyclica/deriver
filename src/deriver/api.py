@@ -476,7 +476,8 @@ class Deriver(object):
                            permissivity,
                            children_per_seed_frag,
                            filter_params,
-                           self.data.must_have_patterns)
+                           self.data.must_have_patterns,
+                           self.data.must_not_have_patterns)
 
                 _, filter_values = res  # we only care about the filter dict, since it has everything
                 all_filtered_children.update(filter_values)  # update our master dict
