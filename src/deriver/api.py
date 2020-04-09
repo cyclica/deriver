@@ -375,7 +375,7 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a, parent_b = np.random.choice(self.data.seed_smiles)
+            parent_a, parent_b = np.random.choice(self.data.seed_smiles, size=2, replace=False)
             try:
                 new_child = co.crossover(parent_a, parent_b)
                 if new_child is not None:
@@ -417,7 +417,7 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a, parent_b = np.random.choice(self.data.seed_smiles)
+            parent_a, parent_b = np.random.choice(self.data.seed_smiles, size=2, replace=False)
             try:
                 new_child = sco.crossover(parent_a, parent_b)
                 if new_child is not None:
