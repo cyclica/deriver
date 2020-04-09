@@ -13,6 +13,11 @@ import re
 from .fragment_index import frag_index
 from .mate import mate
 import os
+import numpy as np
+from . import jensen_crossover as co
+from . import jensen_mutate as mu
+from . import jensen_selfies_crossover as sco
+from . import jensen_selfies_mutate as smu
 
 
 class Deriver(object):
@@ -356,6 +361,90 @@ class Deriver(object):
                         self.data.all_good_scanner_children.append(child)
 
         return good_children, all_filtered_children
+
+    def derive_smiles_gb(self, n_children: int = 100, mut_rate: float = 0.01):
+        children = []
+        good_children = []
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
+
+        for _ in range(n_children):
+            parent_a, parent_b = np.random.choice(self.data.seed_smiles)
+            try:
+                new_child = co.crossover(parent_a, parent_b)
+                if new_child is not None:
+                    new_child = mu.mutate(new_child, mut_rate)
+                assert new_child
+                children.append(new_child)
+            except:
+                continue
+        child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
+        filtered_children = apply_filter(filter_params,
+                                         child_mols,
+                                         self.data.must_have_patterns,
+                                         self.data.must_not_have_patterns
+                                         )
+        for child in filtered_children:
+            if filtered_children[child]["is_good"]:
+                # check the cache
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
+                        good_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    good_children.append(child)
+
+        logger.info(f"Generated {len(good_children)} 'good' children.")
+        return good_children, filtered_children
+
+    def derive_selfies_gb(self, n_children: int = 100, mut_rate: float = 0.01):
+        children = []
+        good_children = []
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
+
+        for _ in range(n_children):
+            parent_a, parent_b = np.random.choice(self.data.seed_smiles)
+            try:
+                new_child = sco.crossover(parent_a, parent_b)
+                if new_child is not None:
+                    new_child = smu.mutate(new_child, mut_rate)
+                assert new_child
+                children.append(new_child)
+            except:
+                continue
+        child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
+        filtered_children = apply_filter(filter_params,
+                                         child_mols,
+                                         self.data.must_have_patterns,
+                                         self.data.must_not_have_patterns
+                                         )
+        for child in filtered_children:
+            if filtered_children[child]["is_good"]:
+                # check the cache
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
+                        good_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    good_children.append(child)
+
+        logger.info(f"Generated {len(good_children)} 'good' children.")
+        return good_children, filtered_children
 
     def set_fragment_source_db(self, frag_db):
 
