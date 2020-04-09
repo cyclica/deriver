@@ -5,7 +5,7 @@ from rdkit.Chem import AllChem
 
 import random
 import numpy as np
-from . import jensen_crossover as co
+from .jensen_crossover import ring_OK, mol_OK
 
 from rdkit import Chem, rdBase
 rdBase.DisableLog('rdApp.error')
@@ -124,7 +124,7 @@ def mutate(mol, mutation_rate):
         new_mols = []
         for m in new_mol_trial:
           m = m[0]
-          if co.mol_OK(m) and co.ring_OK(m):
+          if mol_OK(m) and ring_OK(m):
             new_mols.append(m)
 
         if len(new_mols) > 0:

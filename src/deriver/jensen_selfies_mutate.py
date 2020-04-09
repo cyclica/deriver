@@ -3,8 +3,8 @@ Written by Emilie S. Henault and Jan H. Jensen 2019, copied 04/2020
 """
 import random
 
-from . import jensen_crossover as co
-from . import jensen_selfies_crossover as stco
+from .jensen_crossover import mol_OK
+from .jensen_selfies_crossover import mol2string, string2mol
 
 from rdkit import Chem, rdBase
 rdBase.DisableLog('rdApp.error')
@@ -28,16 +28,16 @@ def get_symbols():
 def mutate(mol, mutation_rate):
     if random.random() > mutation_rate:
         return mol
-    Chem.Kekulize(mol,clearAromaticFlags=True)
-    child = stco.mol2string(mol)
+    Chem.Kekulize(mol, clearAromaticFlags=True)
+    child = mol2string(mol)
     symbols = get_symbols()
     for i in range(50):
         mutated_gene = random.randint(0, len(child) - 1)
         random_symbol_number = random.randint(0, len(symbols)-1)
         new_child = list(child)
         new_child[mutated_gene] = symbols[random_symbol_number]
-        new_child_mol = stco.string2mol(new_child)
-        if co.mol_OK(new_child_mol):
+        new_child_mol = string2mol(new_child)
+        if mol_OK(new_child_mol):
             return new_child_mol
 
     return mol

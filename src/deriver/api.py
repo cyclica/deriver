@@ -13,11 +13,11 @@ import re
 from .fragment_index import frag_index
 from .mate import mate
 import os
-import numpy as np
-from . import jensen_crossover as co
-from . import jensen_mutate as mu
-from . import jensen_selfies_crossover as sco
-from . import jensen_selfies_mutate as smu
+import random
+from .jensen_crossover import crossover as crossover_gb
+from .jensen_mutate import mutate as mutate_gb
+from .jensen_selfies_crossover import crossover as selfies_crossover_gb
+from .jensen_selfies_mutate import mutate as selfies_mutate_gb
 
 
 class Deriver(object):
@@ -44,6 +44,8 @@ class Deriver(object):
             self.child_db = None
             self.all_good_selfies_children = None
             self.all_good_scanner_children = None
+            self.all_good_selfies_gb_children = None
+            self.all_good_smiles_gb_children = None
             self.filter_molecules = None
             self.must_have_patterns = None
             self.must_not_have_patterns = None
@@ -375,15 +377,20 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a, parent_b = np.random.choice(self.data.seed_smiles, size=2, replace=False)
+            parent_a, parent_b = random.sample(self.data.seed_smiles, 2)
             try:
-                new_child = co.crossover(parent_a, parent_b)
+                new_child = crossover_gb(parent_a, parent_b)
                 if new_child is not None:
-                    new_child = mu.mutate(new_child, mut_rate)
-                assert new_child
-                children.append(new_child)
-            except:
+                    new_child = mutate_gb(new_child, mut_rate)
+                    assert new_child
+                else:
+                    continue
+            except Exception:  # pylint: disable=broad-except
+                logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
+                logger.warning(f"Child SELFIES: {new_child}")
+                logger.warning(f"Parent SELFIES:{[parent_a, parent_b]}")
                 continue
+            children.append(new_child)
         child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
         filtered_children = apply_filter(filter_params,
                                          child_mols,
@@ -396,10 +403,12 @@ class Deriver(object):
                 if self.data.filter_molecules:
                     if child not in self.data.filter_molecules:
                         good_children.append(child)
+                        self.data.all_good_smiles_gb_children.append(child)
                     else:
                         logger.debug(f"skipping previously seen molecule: {child}")
                 else:
                     good_children.append(child)
+                    self.data.all_good_smiles_gb_children.append(child)
 
         logger.info(f"Generated {len(good_children)} 'good' children.")
         return good_children, filtered_children
@@ -417,15 +426,20 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a, parent_b = np.random.choice(self.data.seed_smiles, size=2, replace=False)
+            parent_a, parent_b = random.sample(self.data.seed_smiles, 2)
             try:
-                new_child = sco.crossover(parent_a, parent_b)
+                new_child = selfies_crossover_gb(parent_a, parent_b)
                 if new_child is not None:
-                    new_child = smu.mutate(new_child, mut_rate)
-                assert new_child
-                children.append(new_child)
-            except:
+                    new_child = selfies_mutate_gb(new_child, mut_rate)
+                    assert new_child
+                else:
+                    continue
+            except Exception:  # pylint: disable=broad-except
+                logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
+                logger.warning(f"Child SELFIES: {new_child}")
+                logger.warning(f"Parent SELFIES:{[parent_a, parent_b]}")
                 continue
+            children.append(new_child)
         child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
         filtered_children = apply_filter(filter_params,
                                          child_mols,
@@ -438,10 +452,12 @@ class Deriver(object):
                 if self.data.filter_molecules:
                     if child not in self.data.filter_molecules:
                         good_children.append(child)
+                        self.data.all_good_selfies_gb_children.append(child)
                     else:
                         logger.debug(f"skipping previously seen molecule: {child}")
                 else:
                     good_children.append(child)
+                    self.data.all_good_selfies_gb_children.append(child)
 
         logger.info(f"Generated {len(good_children)} 'good' children.")
         return good_children, filtered_children

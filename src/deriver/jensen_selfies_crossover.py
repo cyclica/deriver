@@ -5,7 +5,7 @@ Written by Emilie S. Henault and Jan H. Jensen 2019, copied 04/2020
 from rdkit import Chem
 import random
 from selfies import encoder, decoder
-from . import jensen_crossover as co
+from .jensen_crossover import mol_OK
 
 from rdkit import rdBase
 rdBase.DisableLog('rdApp.error')
@@ -45,7 +45,7 @@ def crossover(parent_a_mol, parent_b_mol):
         b2 = parent_b[cut_point_b:len(parent_b)]
         child_string = a1 + b2
         child_mol = string2mol(child_string)
-        if co.mol_OK(child_mol):
+        if mol_OK(child_mol):
             return child_mol
 
     return None
