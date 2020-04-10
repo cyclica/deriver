@@ -170,5 +170,5 @@ def crossover(parent_A,parent_B):
             new_smiles = Chem.MolToSmiles(new_mol)
         if new_mol is not None and new_smiles not in parent_smiles:
             return new_mol
-    
+
     return None

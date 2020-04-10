@@ -393,7 +393,7 @@ class Deriver(object):
                 logger.warning(e)
                 continue
             children.append(new_child)
-        #child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
+
         filtered_children = apply_filter(filter_params,
                                          children,
                                          self.data.must_have_patterns,
