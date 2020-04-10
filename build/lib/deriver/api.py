@@ -13,6 +13,11 @@ import re
 from .fragment_index import frag_index
 from .mate import mate
 import os
+import random
+from .jensen_crossover import crossover as crossover_gb
+from .jensen_mutate import mutate as mutate_gb
+from .jensen_selfies_crossover import crossover as selfies_crossover_gb
+from .jensen_selfies_mutate import mutate as selfies_mutate_gb
 
 
 class Deriver(object):
@@ -39,6 +44,8 @@ class Deriver(object):
             self.child_db = None
             self.all_good_selfies_children = None
             self.all_good_scanner_children = None
+            self.all_good_selfies_gb_children = None
+            self.all_good_smiles_gb_children = None
             self.filter_molecules = None
             self.must_have_patterns = None
             self.must_not_have_patterns = None
@@ -356,6 +363,107 @@ class Deriver(object):
                         self.data.all_good_scanner_children.append(child)
 
         return good_children, all_filtered_children
+
+    def derive_smiles_gb(self, n_children: int = 100, mut_rate: float = 0.01):
+        children = []
+        good_children = []
+        self.data.all_good_smiles_gb_children = []
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
+
+        for _ in range(n_children):
+            parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
+            parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
+            try:
+                new_child = crossover_gb(parent_a, parent_b)
+                if new_child is not None:
+                    new_child = mutate_gb(new_child, mut_rate)
+                    assert new_child
+                else:
+                    continue
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(f"Produced improper SMILES. Ignoring and trying again. Details below:")
+                logger.warning(f"Parents: \n{parent_a_smiles}\n{parent_b_smiles}")
+                logger.warning(e)
+                continue
+            children.append(new_child)
+
+        filtered_children = apply_filter(filter_params,
+                                         children,
+                                         self.data.must_have_patterns,
+                                         self.data.must_not_have_patterns
+                                         )
+        for child in filtered_children:
+            if filtered_children[child]["is_good"]:
+                # check the cache
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
+                        good_children.append(child)
+                        self.data.all_good_smiles_gb_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    good_children.append(child)
+                    self.data.all_good_smiles_gb_children.append(child)
+
+        logger.info(f"Generated {len(good_children)} 'good' children.")
+        return good_children, filtered_children
+
+    def derive_selfies_gb(self, n_children: int = 100, mut_rate: float = 0.01):
+        children = []
+        good_children = []
+        self.data.all_good_selfies_gb_children = []
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
+
+        for _ in range(n_children):
+            parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
+            parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
+            try:
+                new_child = selfies_crossover_gb(parent_a, parent_b)
+                if new_child is not None:
+                    new_child = selfies_mutate_gb(new_child, mut_rate)
+                    assert new_child
+                else:
+                    continue
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
+                logger.warning(f"Parents: \n{parent_a_smiles}\n{parent_b_smiles}")
+                logger.warning(e)
+            children.append(new_child)
+
+        filtered_children = apply_filter(filter_params,
+                                         children,
+                                         self.data.must_have_patterns,
+                                         self.data.must_not_have_patterns
+                                         )
+        for child in filtered_children:
+            if filtered_children[child]["is_good"]:
+                # check the cache
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
+                        good_children.append(child)
+                        self.data.all_good_selfies_gb_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    good_children.append(child)
+                    self.data.all_good_selfies_gb_children.append(child)
+
+        logger.info(f"Generated {len(good_children)} 'good' children.")
+        return good_children, filtered_children
 
     def set_fragment_source_db(self, frag_db):
 
