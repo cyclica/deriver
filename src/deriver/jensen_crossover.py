@@ -37,8 +37,7 @@ def cut_ring(mol):
                 return None
             bis = random.choice(mol.GetSubstructMatches(Chem.MolFromSmarts('[R]@[R;!D2]@[R]')))
             bis = ((bis[0],bis[1]),(bis[1],bis[2]),)
-        
-        #print bis
+
         bs = [mol.GetBondBetweenAtoms(x,y).GetIdx() for x,y in bis]
     
         fragments_mol = Chem.FragmentOnBonds(mol,bs,addDummies=True,dummyLabels=[(1, 1),(1,1)])
@@ -75,6 +74,8 @@ def mol_OK(mol):
         test_mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
         if test_mol is None:
             return None
+        else:
+            return True
         # target_size = size_stdev*np.random.randn() + average_size #parameters set in GA_mol
         # if mol.GetNumAtoms() > 5 and mol.GetNumAtoms() < target_size:
         #    return True

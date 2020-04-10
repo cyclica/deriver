@@ -367,6 +367,7 @@ class Deriver(object):
     def derive_smiles_gb(self, n_children: int = 100, mut_rate: float = 0.01):
         children = []
         good_children = []
+        self.data.all_good_smiles_gb_children = []
 
         if self.data.filter:
             filter_params = self.data.filter_params
@@ -377,7 +378,8 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a, parent_b = random.sample(self.data.seed_smiles, 2)
+            parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
+            parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
             try:
                 new_child = crossover_gb(parent_a, parent_b)
                 if new_child is not None:
@@ -385,15 +387,15 @@ class Deriver(object):
                     assert new_child
                 else:
                     continue
-            except Exception:  # pylint: disable=broad-except
-                logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
-                logger.warning(f"Child SELFIES: {new_child}")
-                logger.warning(f"Parent SELFIES:{[parent_a, parent_b]}")
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(f"Produced improper SMILES. Ignoring and trying again. Details below:")
+                logger.warning(f"Parents: \n{parent_a_smiles}\n{parent_b_smiles}")
+                logger.warning(e)
                 continue
             children.append(new_child)
-        child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
+        #child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
         filtered_children = apply_filter(filter_params,
-                                         child_mols,
+                                         children,
                                          self.data.must_have_patterns,
                                          self.data.must_not_have_patterns
                                          )
@@ -416,6 +418,7 @@ class Deriver(object):
     def derive_selfies_gb(self, n_children: int = 100, mut_rate: float = 0.01):
         children = []
         good_children = []
+        self.data.all_good_selfies_gb_children = []
 
         if self.data.filter:
             filter_params = self.data.filter_params
@@ -426,7 +429,8 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a, parent_b = random.sample(self.data.seed_smiles, 2)
+            parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
+            parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
             try:
                 new_child = selfies_crossover_gb(parent_a, parent_b)
                 if new_child is not None:
@@ -434,15 +438,14 @@ class Deriver(object):
                     assert new_child
                 else:
                     continue
-            except Exception:  # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
                 logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
-                logger.warning(f"Child SELFIES: {new_child}")
-                logger.warning(f"Parent SELFIES:{[parent_a, parent_b]}")
-                continue
+                logger.warning(f"Parents: \n{parent_a_smiles}\n{parent_b_smiles}")
+                logger.warning(e)
             children.append(new_child)
-        child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
+
         filtered_children = apply_filter(filter_params,
-                                         child_mols,
+                                         children,
                                          self.data.must_have_patterns,
                                          self.data.must_not_have_patterns
                                          )
