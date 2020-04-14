@@ -273,15 +273,13 @@ class Deriver(object):
                     if self.data.filter_molecules:
                         if child not in self.data.filter_molecules:
                             good_children.append(child)
-                            self.data.all_good_selfies_children.append(child)
                         else:
                             logger.debug(f"skipping previously seen molecule: {child}")
                     else:
                         good_children.append(child)
-                        self.data.all_good_selfies_children.append(child)
 
         logger.info(f"Generated {len(good_children)} 'good' children.")
-
+        self.data.all_good_selfies_children = good_children
         return good_children, all_filtered_children
 
     def random_selfies(self, *, n_symbols: int = 100, n_molecules: int = 100):
@@ -313,13 +311,12 @@ class Deriver(object):
                     if self.data.filter_molecules:
                         if child not in self.data.filter_molecules:
                             good_children.append(child)
-                            self.data.all_good_selfies_children.append(child)
                         else:
                             logger.debug(f"skipping previously seen molecule: {child}")
                     else:
                         good_children.append(child)
-                        self.data.all_good_selfies_children.append(child)
 
+        self.data.all_good_selfies_children = good_children
         return good_children
 
     def scan_selfies(self):
@@ -355,13 +352,12 @@ class Deriver(object):
                     if self.data.filter_molecules:
                         if child not in self.data.filter_molecules:
                             good_children.append(child)
-                            self.data.all_good_scanner_children.append(child)
                         else:
                             logger.debug(f"skipping previously seen molecule: {child}")
                     else:
                         good_children.append(child)
-                        self.data.all_good_scanner_children.append(child)
 
+        self.data.all_good_scanner_children = good_children
         return good_children, all_filtered_children
 
     def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
@@ -427,19 +423,15 @@ class Deriver(object):
                 if self.data.filter_molecules:
                     if child not in self.data.filter_molecules:
                         good_children.append(child)
-                        if kind == 'smiles':
-                            self.data.all_good_smiles_gb_children.append(child)
-                        else:
-                            self.data.all_good_selfies_gb_children.append(child)
                     else:
                         logger.debug(f"skipping previously seen molecule: {child}")
                 else:
                     good_children.append(child)
-                    if kind == 'smiles':
-                        self.data.all_good_smiles_gb_children.append(child)
-                    else:
-                        self.data.all_good_selfies_gb_children.append(child)
 
+        if kind == 'smiles':
+            self.data.all_good_smiles_gb_children = good_children
+        else:
+            self.data.all_good_selfies_gb_children = good_children
         logger.info(f"Generated {len(good_children)} 'good' children.")
         return good_children, filtered_children
 
@@ -577,14 +569,12 @@ class Deriver(object):
                 if self.data.filter_molecules:
                     if child not in self.data.filter_molecules:
                         all_good_children.append(child)
-                        self.data.all_good_brics_children.append(child)
                     else:
                         logger.debug(f"skipping previously seen molecule: {child}")
                 else:
                     # there is no provided list of molecules to skip
                     all_good_children.append(child)
-                    self.data.all_good_brics_children.append(child)
 
         logger.info(f"Generated {len(self.data.all_good_brics_children)} 'good' children.")
-
+        self.data.all_good_brics_children = all_good_children
         return all_good_children, all_filtered_children
