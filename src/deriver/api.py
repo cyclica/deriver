@@ -383,8 +383,8 @@ class Deriver(object):
                 do_crossover = True
                 new_child = None
             except ValueError:
-                do_crossover = False
                 assert len(self.data.seed_smiles) > 0
+                do_crossover = False
                 new_child = self.data.seed_smiles[0]
                 parent_a_smiles, parent_b_smiles = (None, None)
             try:
