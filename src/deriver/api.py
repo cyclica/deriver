@@ -365,6 +365,8 @@ class Deriver(object):
         return good_children, all_filtered_children
 
     def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
+        
+        assert len(self.data.seed_smiles) > 0
         children = []
         good_children = []
         if kind == 'selfies':
@@ -391,7 +393,6 @@ class Deriver(object):
             do_crossover = True
             new_child = None
         else:
-            assert len(self.data.seed_smiles) > 0
             do_crossover = False
             new_child = self.data.seed_smiles[0]
 
