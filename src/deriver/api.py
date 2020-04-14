@@ -378,10 +378,19 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
-            parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
             try:
-                new_child = crossover_gb(parent_a, parent_b)
+                parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
+                do_crossover = True
+                new_child = None
+            except ValueError:
+                do_crossover = False
+                assert len(self.data.seed_smiles) > 0
+                new_child = self.data.seed_smiles[0]
+                parent_a_smiles, parent_b_smiles = (None, None)
+            try:
+                if do_crossover:
+                    parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
+                    new_child = crossover_gb(parent_a, parent_b)
                 if new_child is not None:
                     new_child = mutate_gb(new_child, mut_rate)
                     assert new_child
@@ -429,10 +438,19 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
-            parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
             try:
-                new_child = selfies_crossover_gb(parent_a, parent_b)
+                parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
+                do_crossover = True
+                new_child = None
+            except ValueError:
+                assert len(self.data.seed_smiles) > 0
+                do_crossover = False
+                new_child = self.data.seed_smiles[0]
+                parent_a_smiles, parent_b_smiles = (None, None)
+            try:
+                if do_crossover:
+                    parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
+                    new_child = selfies_crossover_gb(parent_a, parent_b)
                 if new_child is not None:
                     new_child = selfies_mutate_gb(new_child, mut_rate)
                     assert new_child
