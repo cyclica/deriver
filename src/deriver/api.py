@@ -365,7 +365,7 @@ class Deriver(object):
         return good_children, all_filtered_children
 
     def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
-        
+
         assert len(self.data.seed_smiles) > 0
         children = []
         good_children = []
