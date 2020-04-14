@@ -14,10 +14,11 @@ def test_deriver():
                        'Nc1nccc(-c2ccc3noc(NC(=O)COc4ccc(O)c(S(=O)(=O)N5C=CC(=O)C(O)C5)c4)c3c2)n1',
     ])
     deriver.enable_and_expand_filter()
-    selfies_gb, _ = deriver.derive_selfies_gb(100)
-    smiles_gb, _ = deriver.derive_smiles_gb(100)
+    selfies_gb, _ = deriver.derive_gb(100, kind='selfies')
+    smiles_gb, _ = deriver.derive_gb(100, kind='smiles')
     selfies, _ = deriver.derive_selfies(100)
     assert len(selfies_gb) > 2
     assert len(smiles_gb) > 2
     assert len(selfies) > 2
     assert deriver.data.all_good_selfies_gb_children
+    assert deriver.data.all_good_smiles_gb_children
