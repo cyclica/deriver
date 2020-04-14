@@ -378,11 +378,11 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            try:
+            if len(self.data.seed_smiles) > 1:
                 parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
                 do_crossover = True
                 new_child = None
-            except ValueError:
+            else:
                 assert len(self.data.seed_smiles) > 0
                 do_crossover = False
                 new_child = self.data.seed_smiles[0]
@@ -438,11 +438,11 @@ class Deriver(object):
             filter_params = None
 
         for _ in range(n_children):
-            try:
+            if len(self.data.seed_smiles) > 1:
                 parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
                 do_crossover = True
                 new_child = None
-            except ValueError:
+            else:
                 assert len(self.data.seed_smiles) > 0
                 do_crossover = False
                 new_child = self.data.seed_smiles[0]
