@@ -1,4 +1,5 @@
 import logging as logger
+import uuid
 from .child_filter import get_filter_values, apply_filter
 from .config import drug_like_params
 from rdkit import Chem
@@ -453,7 +454,7 @@ class Deriver(object):
         """
         logger.info("Processing seeds to create scaffold fragments:")
 
-        self.data.seed_frag_db = "seed_frags.db"
+        self.data.seed_frag_db = f"seed_frags_{uuid.uuid4()}.db"
         self.data.seed_frags = []
 
         # Databases are used in lieu of alternatives (like dataframes) in order to operate on larger datasets
