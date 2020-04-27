@@ -363,6 +363,20 @@ class Deriver(object):
 
     def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
 
+        def sanitize(children_list):
+            new_population = []
+            smile_set = set()
+            for mol in children_list:
+                if mol is not None:
+                    try:
+                        smile = Chem.MolToSmiles(mol)
+                        if smile is not None and smile not in smile_set:
+                            smile_set.add(smile)
+                            new_population.append(mol)
+                    except ValueError:
+                        logger.warning('A derive_gb mol failed sanitization')
+            return new_population
+
         assert len(self.data.seed_smiles) > 0
         children = []
         good_children = []
@@ -413,6 +427,7 @@ class Deriver(object):
                     logger.warning(f"Pre-mutation child: {new_child}")
                 logger.warning(e)
 
+        children = sanitize(children)
         filtered_children = apply_filter(filter_params,
                                          children,
                                          self.data.must_have_patterns,
