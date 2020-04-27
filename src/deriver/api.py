@@ -404,6 +404,7 @@ class Deriver(object):
                     assert mutated_child
                 else:
                     continue
+                children.append(mutated_child)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(f"Produced improper {kind.upper()}. Ignoring and trying again. Details below:")
                 if do_crossover:
@@ -411,7 +412,6 @@ class Deriver(object):
                 if new_child:
                     logger.warning(f"Pre-mutation child: {new_child}")
                 logger.warning(e)
-            children.append(new_child)
 
         filtered_children = apply_filter(filter_params,
                                          children,
