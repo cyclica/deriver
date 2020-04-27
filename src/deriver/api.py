@@ -363,6 +363,20 @@ class Deriver(object):
 
     def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
 
+        def sanitize(children_list):
+            new_population = []
+            smile_set = set()
+            for mol in children_list:
+                if mol is not None:
+                    try:
+                        smile = Chem.MolToSmiles(mol)
+                        if smile is not None and smile not in smile_set:
+                            smile_set.add(smile)
+                            new_population.append(mol)
+                    except ValueError:
+                        logger.warning('A derive_gb mol failed sanitization')
+            return new_population
+
         assert len(self.data.seed_smiles) > 0
         children = []
         good_children = []
@@ -404,6 +418,7 @@ class Deriver(object):
                     assert mutated_child
                 else:
                     continue
+                children.append(mutated_child)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(f"Produced improper {kind.upper()}. Ignoring and trying again. Details below:")
                 if do_crossover:
@@ -411,8 +426,8 @@ class Deriver(object):
                 if new_child:
                     logger.warning(f"Pre-mutation child: {new_child}")
                 logger.warning(e)
-            children.append(new_child)
 
+        children = sanitize(children)
         filtered_children = apply_filter(filter_params,
                                          children,
                                          self.data.must_have_patterns,
