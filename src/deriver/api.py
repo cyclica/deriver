@@ -504,11 +504,13 @@ class Deriver(object):
             # todo: actual exception is deriver.lib_read.FragmentDoesNotExist, check if we can except just this case
             except:
                 continue
-                # missing_piece_fc = 3.0  # approximation
-                # missing_piece_len = 40  # approximation
 
+            # if parent is not None:
             missing_piece_fc = (parent.frag_coeff - user_frag.frag_coeff) - 1.0  # -1.0 because two pieces combine
             missing_piece_len = len(parent.smile) - len(user_frag.smile)  # approximation
+            # else:
+            #       missing_piece_fc = 3.0  # approximation
+            #       missing_piece_len = 40  # approximation
 
             # this is what we are going to keep
             seed_frag = (user_frag.smile,
