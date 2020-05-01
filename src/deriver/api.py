@@ -499,13 +499,16 @@ class Deriver(object):
                 continue
 
             # using this fragment and the whole parent molecule, estimate the "missing" FC and size
-            parent = Heritage.get(Heritage.frag_id == user_frag.id).parent
-            if parent is not None:
-                missing_piece_fc = (parent.frag_coeff - user_frag.frag_coeff) - 1.0  # -1.0 because two pieces combine
-                missing_piece_len = len(parent.smile) - len(user_frag.smile)  # approximation
-            else:
-                missing_piece_fc = 3.0  # approximation
-                missing_piece_len = 40  # approximation
+            try:
+                parent = Heritage.get(Heritage.frag_id == user_frag.id).parent
+            # todo: actual exception is deriver.lib_read.FragmentDoesNotExist, check if we can except just this case
+            except:
+                continue
+                # missing_piece_fc = 3.0  # approximation
+                # missing_piece_len = 40  # approximation
+
+            missing_piece_fc = (parent.frag_coeff - user_frag.frag_coeff) - 1.0  # -1.0 because two pieces combine
+            missing_piece_len = len(parent.smile) - len(user_frag.smile)  # approximation
 
             # this is what we are going to keep
             seed_frag = (user_frag.smile,
