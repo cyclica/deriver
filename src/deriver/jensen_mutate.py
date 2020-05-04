@@ -122,6 +122,7 @@ def mutate(mol, mutation_rate):
         new_mol_trial = rxn.RunReactants((mol,))
 
         # new_mols = []
+        random.shuffle(new_mol_trial)
         for m in new_mol_trial:
             m = m[0]
             if mol_OK(m) and ring_OK(m):

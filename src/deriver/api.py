@@ -502,7 +502,10 @@ class Deriver(object):
             try:
                 parent = Heritage.get(Heritage.frag_id == user_frag.id).parent
             # todo: actual exception is deriver.lib_read.FragmentDoesNotExist, check if we can except just this case
-            except:  # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(f'Encountered exception {e}')
+                logger.warning('If this exception describes a missing parent in the Heritage table, this bug'
+                               'is known and is being handled as intended.')
                 continue
 
             # if parent is not None:
