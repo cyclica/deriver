@@ -32,7 +32,8 @@ def selfies_substitution(*,
                          n_children: int = 100,
                          mut_rate: float = 0.03,
                          mut_min: int = 1,
-                         mut_max: int = 2
+                         mut_max: int = 2,
+                         max_trials: int = 100
                          ):
 
     """
@@ -43,6 +44,7 @@ def selfies_substitution(*,
     :param mut_rate: How frequent should mutations be? 0.0 to 1.0
     :param mut_min: What is the min number of mutations to allow in a given child, relative to the parent?
     :param mut_max: Same as above but the max.
+    :param max_trials: number of attempts to create valid mutations before moving on, useful for pathological selfies
     :return:
     """
 
@@ -63,7 +65,8 @@ def selfies_substitution(*,
         mut_symbols = symbols.copy()  # don't manipulate the original
         mut_positions = list(range(len(symbols)))  # need the index
 
-        while muts < mut_min:
+        t = 0
+        while (muts < mut_min) and (t <= max_trials):
             random.shuffle(mut_positions)  # shuffle the order so that mutations will be random
             for pos in mut_positions:  # try to mutate
                 if pos not in mutations:
@@ -76,6 +79,10 @@ def selfies_substitution(*,
                                 if muts == mut_max:
                                     # when we're done, stop looking
                                     break
+            t += 1
+        if t > max_trials:
+            logger.warning(f"Failed to produce any selfies after {max_trials} trials. Returning empty list.")
+            return list()
 
         # for each planned mutation, actually execute it, on the non-shuffled original SELFIES list
         for index in sorted(mutations, reverse=True):
@@ -114,7 +121,8 @@ def selfies_insertion(*,
                          n_children: int = 100,
                          mut_rate: float = 0.03,
                          mut_min: int = 1,
-                         mut_max: int = 2
+                         mut_max: int = 2,
+                         max_trials: int = 100
                          ):
 
     """
@@ -125,6 +133,7 @@ def selfies_insertion(*,
     :param mut_rate: How frequent should mutations be? 0.0 to 1.0
     :param mut_min: What is the min number of mutations to allow in a given child, relative to the parent?
     :param mut_max: Same as above but the max.
+    :param max_trials: number of attempts to create valid mutations before moving on, useful for pathological selfies
     :return:
     """
 
@@ -139,14 +148,14 @@ def selfies_insertion(*,
     parent_selfies = encoder(parent_smiles)
     symbols = re.findall(r"[^[]*\[([^]]*)\]", parent_selfies)   # get the SELFIES symbols into a list
 
-
     while spawns < n_children:  # try to produce the correct number of children
         muts = 0
         mutations = []  # which parts of the SELFIES to remove
         mut_symbols = symbols.copy()  # don't manipulate the original
         mut_positions = list(range(len(symbols)))  # need the index
 
-        while muts < mut_min:
+        t = 0
+        while (muts < mut_min) and (t <= max_trials):
             random.shuffle(mut_positions)  # shuffle the order so that mutations will be random
             for pos in mut_positions:  # try to mutate
                 if pos not in mutations:
@@ -156,6 +165,11 @@ def selfies_insertion(*,
                         if muts == mut_max:
                             # when we're done, stop looking
                             break
+
+            t += 1
+        if t > max_trials:
+            logger.warning(f"Failed to produce any selfies after {max_trials} trials. Returning empty list.")
+            return list()
 
         # for each planned mutation, actually execute it, on the non-shuffled original SELFIES list
         for index in sorted(mutations, reverse=True):
@@ -194,7 +208,8 @@ def selfies_deletion(*,
                          n_children: int = 100,
                          mut_rate: float = 0.03,
                          mut_min: int = 1,
-                         mut_max: int = 2
+                         mut_max: int = 2,
+                         max_trials: int = 100
                          ):
 
     """
@@ -205,6 +220,7 @@ def selfies_deletion(*,
     :param mut_rate: How frequent should mutations be? 0.0 to 1.0
     :param mut_min: What is the min number of mutations to allow in a given child, relative to the parent?
     :param mut_max: Same as above but the max.
+    :param max_trials: number of attempts to create valid mutations before moving on, useful for pathological selfies
     :return:
     """
 
@@ -225,7 +241,8 @@ def selfies_deletion(*,
         mut_symbols = symbols.copy()  # don't manipulate the original
         mut_positions = list(range(len(symbols)))  # need the index
 
-        while muts < mut_min:
+        t = 0
+        while (muts < mut_min) and (t <= max_trials):
             random.shuffle(mut_positions)  # shuffle the order so that mutations will be random
             for pos in mut_positions:  # try to mutate
                 if pos not in mutations:
@@ -235,6 +252,11 @@ def selfies_deletion(*,
                         if muts == mut_max:
                             # when we're done, stop looking
                             break
+
+            t += 1
+        if t > max_trials:
+            logger.warning(f"Failed to produce any selfies after {max_trials} trials. Returning empty list.")
+            return list()
 
         # for each planned mutation, actually execute it, on the non-shuffled original SELFIES list
         for index in sorted(mutations, reverse=True):

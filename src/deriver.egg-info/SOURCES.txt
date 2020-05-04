@@ -1,3 +1,4 @@
+MANIFEST.in
 README.md
 setup.py
 src/deriver/__init__.py
@@ -10,9 +11,14 @@ src/deriver/fragment.py
 src/deriver/fragment_caches.py
 src/deriver/fragment_index.py
 src/deriver/fragment_queries.py
+src/deriver/jensen_crossover.py
+src/deriver/jensen_mutate.py
+src/deriver/jensen_selfies_crossover.py
+src/deriver/jensen_selfies_mutate.py
 src/deriver/lib_read.py
 src/deriver/mate.py
 src/deriver/selfies_methods.py
+src/deriver/test_deriver.py
 src/deriver/util.py
 src/deriver.egg-info/PKG-INFO
 src/deriver.egg-info/SOURCES.txt
@@ -20,3 +26,4 @@ src/deriver.egg-info/dependency_links.txt
 src/deriver.egg-info/not-zip-safe
 src/deriver.egg-info/requires.txt
 src/deriver.egg-info/top_level.txt
+src/deriver/data/alert_collection.csv

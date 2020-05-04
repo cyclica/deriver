@@ -1,4 +1,3 @@
-from .config import pains_smarts
 from rdkit import Chem
 from rdkit.Chem import BRICS as Brics
 from rdkit.Chem import Crippen as crip
@@ -6,6 +5,14 @@ from rdkit.Chem import Lipinski as lip
 from rdkit.Chem import rdMolDescriptors as desc
 from rdkit.Chem import rdmolops
 from typing import List
+import pandas as pd
+import os
+import copy
+
+alerts = pd.read_csv(os.path.join(os.path.dirname(__file__), 'data/alert_collection.csv'))
+pains = alerts.loc[alerts['rule_set_name'] == 'PAINS', 'smarts']
+glaxo = alerts.loc[alerts['rule_set_name'] == 'Glaxo', 'smarts']
+always_filter = {'PAINS': pains, 'glaxo': glaxo}
 
 
 def get_atom_props(mol):
@@ -70,19 +77,22 @@ def get_filter_values(mol):
     return values
 
 
-def apply_filter(final_limits, children, must_have_patterns: List[str] = None):
+def apply_filter(final_limits, children, must_have_patterns: List[str] = None, must_not_have_patterns: List[str] = None):
 
     """
     Apply the filters to a set of molecules.
     :param final_limits: The drug-like parameters to use as bounds for the filters.
     :param children: The Chem.Mol objects to actually filter.
     :param must_have_patterns: An optional list of SMARTS patterns to ensure at least one of which must be present.
+    :param must_not_have_patterns: An optional list of SMARTS patterns where none can be present.
     :return: A dictionary with top-level keys being SMILES strings, and next level being filter criteria.
     """
 
     assert isinstance(children, list)
     assert isinstance(children[0], Chem.Mol)
     assert isinstance(final_limits, dict) or (final_limits is None)
+    if not must_not_have_patterns:
+        must_not_have_patterns = []
 
     # compute the values to check for all the children
     child_values = {}
@@ -166,40 +176,21 @@ def apply_filter(final_limits, children, must_have_patterns: List[str] = None):
             child_values[smile]["is_good"] = False
             child_values[smile]["rejections"].append("num_chiral_centers")
 
-        # PAINS
-        if filter_pains(smile):
-            child_values[smile]["is_good"] = False
-            child_values[smile]["rejections"].append("PAINS")
+        # exclude smarts
+        smarts_dict = copy.deepcopy(always_filter)
+        smarts_dict.update({'user_excluded': must_not_have_patterns})
+        for name in smarts_dict.keys():
+            if filter_smarts(smile=smile, patterns=smarts_dict[name]):
+                child_values[smile]["is_good"] = False
+                child_values[smile]["rejections"].append(name)
 
-        # filter smarts patterns
+        # require smarts
         if must_have_patterns:
             if not filter_smarts(smile=smile, patterns=must_have_patterns):
                 child_values[smile]["is_good"] = False
                 child_values[smile]["rejections"].append("missing_pattern")
 
     return child_values
-
-
-pains_patts = None  # scope this here, embarrasingly. should be improved by a proper representation for the filter
-
-
-def filter_pains(smile):
-    """
-    function for filtering based on pains criteria
-    :param smile:
-    :return:
-    """
-    # read in the PAINS patterns
-    global pains_patts  # pylint: disable=global-statement
-    if pains_patts is None:
-        pains_patts = [Chem.MolFromSmarts(x, mergeHs=True) for x in pains_smarts]
-
-    # if there is a PAINS match, stop searching and return True
-    mol = Chem.MolFromSmiles(smile)
-    for patt in pains_patts:
-        if mol.HasSubstructMatch(patt):
-            return True
-    return False
 
 
 def filter_smarts(*, smile: str, patterns: List[str]):
@@ -210,7 +201,6 @@ def filter_smarts(*, smile: str, patterns: List[str]):
     :param patterns: list of SMARTS patterns to look for
     :return: True if molecule DOES have AT LEAST ONE of the patterns
     """
-
     # get mols of the search patterns
     filter_mols = [Chem.MolFromSmarts(x, mergeHs=True) for x in patterns]
     # if there is a match, stop searching and return True
