@@ -121,13 +121,15 @@ def mutate(mol, mutation_rate):
 
         new_mol_trial = rxn.RunReactants((mol,))
 
-        new_mols = []
+        # new_mols = []
         for m in new_mol_trial:
-          m = m[0]
-          if mol_OK(m) and ring_OK(m):
-            new_mols.append(m)
+            m = m[0]
+            if mol_OK(m) and ring_OK(m):
+                # new_mols.append(m)
+                # is it possible that the output of RunReactants is ordered / biased?
+                return m
 
-        if len(new_mols) > 0:
-          return random.choice(new_mols)
+        # if len(new_mols) > 0:
+        #     return random.choice(new_mols)
 
     return None
