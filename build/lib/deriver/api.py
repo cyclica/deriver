@@ -363,6 +363,20 @@ class Deriver(object):
 
     def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
 
+        def sanitize(children_list):
+            new_population = []
+            smile_set = set()
+            for mol in children_list:
+                if mol is not None:
+                    try:
+                        smile = Chem.MolToSmiles(mol)
+                        if smile is not None and smile not in smile_set:
+                            smile_set.add(smile)
+                            new_population.append(mol)
+                    except ValueError:
+                        logger.warning('A derive_gb mol failed sanitization')
+            return new_population
+
         assert len(self.data.seed_smiles) > 0
         children = []
         good_children = []
@@ -404,6 +418,7 @@ class Deriver(object):
                     assert mutated_child
                 else:
                     continue
+                children.append(mutated_child)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(f"Produced improper {kind.upper()}. Ignoring and trying again. Details below:")
                 if do_crossover:
@@ -411,8 +426,8 @@ class Deriver(object):
                 if new_child:
                     logger.warning(f"Pre-mutation child: {new_child}")
                 logger.warning(e)
-            children.append(new_child)
 
+        children = sanitize(children)
         filtered_children = apply_filter(filter_params,
                                          children,
                                          self.data.must_have_patterns,
@@ -484,13 +499,21 @@ class Deriver(object):
                 continue
 
             # using this fragment and the whole parent molecule, estimate the "missing" FC and size
-            parent = Heritage.get(Heritage.frag_id == user_frag.id).parent
-            if parent is not None:
-                missing_piece_fc = (parent.frag_coeff - user_frag.frag_coeff) - 1.0  # -1.0 because two pieces combine
-                missing_piece_len = len(parent.smile) - len(user_frag.smile)  # approximation
-            else:
-                missing_piece_fc = 3.0  # approximation
-                missing_piece_len = 40  # approximation
+            try:
+                parent = Heritage.get(Heritage.frag_id == user_frag.id).parent
+            # todo: actual exception is deriver.lib_read.FragmentDoesNotExist, check if we can except just this case
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(f'Encountered exception {e}')
+                logger.warning('If this exception describes a missing parent in the Heritage table, this bug'
+                               'is known and is being handled as intended.')
+                continue
+
+            # if parent is not None:
+            missing_piece_fc = (parent.frag_coeff - user_frag.frag_coeff) - 1.0  # -1.0 because two pieces combine
+            missing_piece_len = len(parent.smile) - len(user_frag.smile)  # approximation
+            # else:
+            #       missing_piece_fc = 3.0  # approximation
+            #       missing_piece_len = 40  # approximation
 
             # this is what we are going to keep
             seed_frag = (user_frag.smile,
