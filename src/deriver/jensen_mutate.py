@@ -87,50 +87,62 @@ def add_ring():
 
 def change_atom(mol):
     choices = ['#6','#7','#8','#9','#16','#17','#35']
-    p = [0.15,0.15,0.14,0.14,0.14,0.14,0.14]
+    random.shuffle(choices)
+    X = ""
+    for choice in choices:
+        if choice in Chem.MolToSmarts(mol):
+            X = choice
+            break
+    random.shuffle(choices)
+    Y = ""
+    for choice in choices:
+        if choice != X:
+            Y = choice
+            break
 
-    X = np.random.choice(choices, p=p)
-    while not mol.HasSubstructMatch(Chem.MolFromSmarts('['+X+']')):
-      X = np.random.choice(choices, p=p)
-    Y = np.random.choice(choices, p=p)
-    while Y == X:
-      Y = np.random.choice(choices, p=p)
-
+    if Y == "" or X == "":
+        return None
     return '[X:1]>>[Y:1]'.replace('X',X).replace('Y',Y)
+
+
+def reactor(mol):
+
+    ia = lambda x: insert_atom()
+    cbo = lambda x: change_bond_order()
+    dcb = lambda x: delete_cyclic_bond()
+    ar = lambda x: add_ring()
+    da = lambda x: delete_atom()
+    ca = lambda x: change_atom(x)
+    aa = lambda x: append_atom()
+
+    rxn_func_list = [ia, cbo, dcb, ar, da, ca, aa]
+    random.shuffle(rxn_func_list)
+
+    for rxn_func in rxn_func_list:
+        rxn_smarts = rxn_func(mol)
+        if rxn_smarts is None:
+            continue
+        rxn = AllChem.ReactionFromSmarts(rxn_smarts)
+        yield rxn
 
 
 def mutate(mol, mutation_rate):
 
     if random.random() > mutation_rate:
-      return mol
+        return mol
 
     Chem.Kekulize(mol,clearAromaticFlags=True)
     p = [0.15,0.14,0.14,0.14,0.14,0.14,0.15]
     for i in range(10):
-        rxn_smarts_list = 7*['']
-        rxn_smarts_list[0] = insert_atom()
-        rxn_smarts_list[1] = change_bond_order()
-        rxn_smarts_list[2] = delete_cyclic_bond()
-        rxn_smarts_list[3] = add_ring()
-        rxn_smarts_list[4] = delete_atom()
-        rxn_smarts_list[5] = change_atom(mol)
-        rxn_smarts_list[6] = append_atom()
-        rxn_smarts = np.random.choice(rxn_smarts_list, p=p)
-
-        rxn = AllChem.ReactionFromSmarts(rxn_smarts)
-
-        new_mol_trial = rxn.RunReactants((mol,))
-
-        # new_mols = []
-        random.shuffle(new_mol_trial)
-        for m in new_mol_trial:
-            m = m[0]
-            if mol_OK(m) and ring_OK(m):
-                # new_mols.append(m)
-                # is it possible that the output of RunReactants is ordered / biased?
-                return m
-
-        # if len(new_mols) > 0:
-        #     return random.choice(new_mols)
+        my_reactor = reactor(mol)
+        for rxn in my_reactor:
+            new_mols = []
+            new_mol_trial = rxn.RunReactants((mol,))
+            for m in new_mol_trial:
+                m = m[0]
+                if mol_OK(m) and ring_OK(m):
+                    new_mols.append(m)
+            if len(new_mols) > 0:
+                return random.choice(new_mols)
 
     return None
