@@ -136,13 +136,10 @@ def mutate(mol, mutation_rate):
     for i in range(10):
         my_reactor = reactor(mol)
         for rxn in my_reactor:
-            new_mols = []
             new_mol_trial = rxn.RunReactants((mol,))
             for m in new_mol_trial:
                 m = m[0]
                 if mol_OK(m) and ring_OK(m):
-                    new_mols.append(m)
-            if len(new_mols) > 0:
-                return random.choice(new_mols)
+                    return m
 
     return None
