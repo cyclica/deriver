@@ -119,11 +119,15 @@ def reactor(mol):
     random.shuffle(rxn_func_list)
 
     for rxn_func in rxn_func_list:
-        rxn_smarts = rxn_func(mol)
-        if rxn_smarts is None:
-            continue
-        rxn = AllChem.ReactionFromSmarts(rxn_smarts)
-        yield rxn
+        rxn_smarts = []
+        for _ in range(10):
+            rxn_smarts.append(rxn_func(mol))
+        rxn_smarts = list(set(rxn_smarts))
+        for smarts in rxn_smarts:
+            if smarts is None:
+                continue
+            rxn = AllChem.ReactionFromSmarts(rxn_smarts)
+            yield rxn
 
 
 def mutate(mol, mutation_rate):
@@ -132,14 +136,12 @@ def mutate(mol, mutation_rate):
         return mol
 
     Chem.Kekulize(mol,clearAromaticFlags=True)
-    p = [0.15,0.14,0.14,0.14,0.14,0.14,0.15]
-    for i in range(10):
-        my_reactor = reactor(mol)
-        for rxn in my_reactor:
-            new_mol_trial = rxn.RunReactants((mol,))
-            for m in new_mol_trial:
-                m = m[0]
-                if mol_OK(m) and ring_OK(m):
-                    return m
+    my_reactor = reactor(mol)
+    for rxn in my_reactor:
+        new_mol_trial = rxn.RunReactants((mol,))
+        for m in new_mol_trial:
+            m = m[0]
+            if mol_OK(m) and ring_OK(m):
+                return m
 
     return None
