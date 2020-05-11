@@ -20,10 +20,6 @@ def react(user_frag, mate_mols):
     :return:
     """
 
-    # shuffle the order of the provided mate fragments
-    #   don't, to allow this to be an iterator. It is already shuffled in get_mate_fragments
-    # random.shuffle(mate_mols, random=random.random)
-
     for mate_frag in mate_mols:
 
         # list of reactions in the Brics system, try them all in a random order (to prevent systematic bias)
@@ -198,10 +194,6 @@ def mate(db,
                         logger.error(f"Couldn't find any children for {child_smile}. Aborting.")
                         break
 
-                # If it is an iterator, it will hold the database, so best close it.
-                if not isinstance(mate_mols, list):
-                    mate_mols.close()
-
                 child_smile = Chem.MolToSmiles(child, isomericSmiles=True)
                 child_smile = child_smile.replace("@", "")  # remove the stereochem info
 
@@ -239,10 +231,6 @@ def mate(db,
             done_mating = True
             # DO NOT RAISE AN ERROR HERE I SWEAR
             # LOOP HAS TO CONTINUE HERE, ERROR IS KNOWN AND I'M NOT WORRIED ABOUT IT
-
-    # If it is an iterator, it will hold the database, so best close it.
-    if not isinstance(mate_mols, list):
-        mate_mols.close()
 
     logger.info(f"Finished Mating {user_smile}. Produced {len(finished_children)} children.")
     # pre-filter the children of this parent
@@ -306,35 +294,24 @@ def get_mate_fragments(db,
         raise Exception("Database file not found: " + db)
     lib = SqliteDatabase(db)
     Fragment, _, _, _ = lib_read(lib)
-    lib.connect()
+    with lib:
+        # define a length cutoff dynamically, with a minimum
+        length_cutoff = ((missing_piece_len * 1.5) / (0.5 * max_pseudoatoms)) * permissivity
+        if length_cutoff < 20.0:
+            length_cutoff = 20.0
 
-    # define a length cutoff dynamically, with a minimum
-    length_cutoff = ((missing_piece_len * 1.5) / (0.5 * max_pseudoatoms)) * permissivity
-    if length_cutoff < 20.0:
-        length_cutoff = 20.0
+        # this is the part where we avoid the "ORDER BY RANDOM() LIMIT" query by using the FragmentIndex.
+        # It saves quite a bit of time, at a moderate cost of memory.
+        # returns an iterator rather than a list, so we only fetch as many fragments as we need.
+        fx = frag_index(db)
+        lim = max_num_children * 100
+        fids = fx.mate_query(
+            permissivity, max_pseudoatoms,
+            missing_piece_fc, missing_piece_len,
+            length_cutoff, allowed_atoms,
+            limit=lim
+        )
 
-    # this is the part where we avoid the "ORDER BY RANDOM() LIMIT" query by using the FragmentIndex.
-    # It saves quite a bit of time, at a moderate cost of memory.
-    # returns an iterator rather than a list, so we only fetch as many fragments as we need.
-    fx = frag_index(db)
-    lim = max_num_children * 100
-    fids = fx.mate_query(
-        permissivity, max_pseudoatoms,
-        missing_piece_fc, missing_piece_len,
-        length_cutoff, allowed_atoms,
-        limit=lim
-    )
+        mate_mols = [Chem.MolFromSmiles(Fragment.select().where(Fragment.id == fid)[0].smile) for fid in fids]
 
-    def mate_mols():
-        try:
-            for fid in fids:
-                my_mate = Fragment.select().where(Fragment.id == fid)[0]
-                mol = Chem.MolFromSmiles(my_mate.smile)
-                yield mol
-        except GeneratorExit:
-            # This happens when "close()" is called on the iterator/generator, so close the database.
-            lib.close()
-
-    fast_iterator = mate_mols()
-    # Don't close db when we return fast iterator, it will be closed when the iterator closes.
-    return fast_iterator
+    return mate_mols
