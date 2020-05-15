@@ -82,9 +82,6 @@ def mate(db,
 
     """
 
-    # fix certain bad molecules
-    if user_smile.startswith("[7*]="):
-        user_smile = user_smile.replace("[7*]=", "[7*]")
     # now get the list of pseudoatoms in the user fragment
     _, _, p_atoms = fragment.get_pseudo_atoms(user_smile)
     user_frag_mol = Chem.MolFromSmiles(user_smile)
@@ -134,9 +131,6 @@ def mate(db,
                 done_mating = True
                 break
             child_smile = Chem.MolToSmiles(child, isomericSmiles=True)
-            child_smile = child_smile.replace("@", "")  # remove the stereochemistry information
-            child_smile = child_smile.replace("[7*]=", "[7*]", 1)
-            child_smile = child_smile.replace("=[7*]", "[7*]", 1)
             child = Chem.MolFromSmiles(child_smile)
             _, _, p_atoms = fragment.get_pseudo_atoms(child_smile)
             num_p_atoms = len(p_atoms)
@@ -179,9 +173,6 @@ def mate(db,
                 try:
                     child = next(complete_children)
                     child_smile = Chem.MolToSmiles(child, isomericSmiles=True)
-                    child_smile = child_smile.replace("@", "")  # remove the stereochem info
-                    child_smile = child_smile.replace("[7*]=", "[7*]", 1)
-                    child_smile = child_smile.replace("=[7*]", "[7*]", 1)
                     child = Chem.MolFromSmiles(child_smile)
                 except Exception as e:  # pylint: disable=broad-except
                     if retries > 5:
@@ -195,7 +186,6 @@ def mate(db,
                         break
 
                 child_smile = Chem.MolToSmiles(child, isomericSmiles=True)
-                child_smile = child_smile.replace("@", "")  # remove the stereochem info
 
                 # recalculate new  estimated missing piece length
                 # basically, how much was added since the original fragment (when missing_piece_len was defined)?
@@ -209,7 +199,6 @@ def mate(db,
 
             # need to check if the child is complete or not
             child_smile = Chem.MolToSmiles(child, isomericSmiles=True)
-            child_smile = child_smile.replace("@", "")  # remove the stereochem info
             _, _, p_atoms = fragment.get_pseudo_atoms(child_smile)
             num_p_atoms = len(p_atoms)
             if num_p_atoms > 0:
@@ -312,6 +301,12 @@ def get_mate_fragments(db,
             limit=lim
         )
 
-        mate_mols = [Chem.MolFromSmiles(Fragment.select().where(Fragment.id == fid)[0].smile) for fid in fids]
+        def mate_mols():
+            for fid in fids:
+                my_mate = Fragment.select().where(Fragment.id == fid)[0]
+                mol = Chem.MolFromSmiles(my_mate.smile)
+                yield mol
 
-    return mate_mols
+        fast_iterator = mate_mols()
+        # Don't close db when we return fast iterator, it will be closed when the iterator closes.
+        return fast_iterator
