@@ -1,4 +1,4 @@
-Welcome to the readme for replicating the results from "Assessing Methods and Obstacles in Chemical Space Exploration"!
+Welcome to the readme for replicating the results from "Assessing Methods and Obstacles in Chemical Space Exploration"! https://chemrxiv.org/articles/preprint/Assessing_Methods_and_Obstacles_in_Chemical_Space_Exploration/12761840
 
 ## Getting Started
 To benchmark Deriver using the Guacamol framework, you will need an environment with the `guacamol` python package:
@@ -18,8 +18,8 @@ Then use Deriver's built-in fragment database generator:
 ```bash
 python deriver/src/deriver/fragment.py -i guacamol_v1_all.smi -o chembl.db
 ```
-The authors note that this process is memory and time-intensive. It is advisable to split the list into many parts, run in parallel on virtual machines, and then recombine the final set of fragments. This was done for the publication.
-The authors also advise using the following folder structure when running benchmarks to avoid pathing errors:
+This process is memory and time-intensive. It is advisable to split the list into many parts, run in parallel on virtual machines, and then recombine the final set of fragments. This was done for the publication.
+Use following folder structure when running benchmarks to avoid pathing errors:
 .
 ├ results.py
 ├ plotting.py
@@ -49,7 +49,7 @@ After running `goal_directed_generation.py` there is some post-processing to be 
 ```bash
 python results.py --folder deriver_goal
 ```
-The authors assert the following folder structure when plotting using plotting.py. Each folder is to contain the contents of deriver_goal for a single benchmark, with nohup.out copied from the parent folder and chembl.db removed:
+The following folder structure must be used when plotting using plotting.py to reproduce all figures. When reproducing single figures, it is sufficient to group related experiment folders into the same parent (e.g. comparing benchmark results when changing the director, holding each experiment within the parent 'director' folder'. Each (sub)folder is to contain the contents of deriver_goal for a single benchmark, with nohup.out copied from the parent folder and chembl.db removed:
 all_results
 ├ data
 │   ├ alert_collection.csv
