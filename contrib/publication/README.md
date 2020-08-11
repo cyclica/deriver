@@ -1,4 +1,4 @@
-dme for replicating the results from "Assessing Methods and Obstacles in Chemical Space Exploration"!
+Welcome to the readme for replicating the results from "Assessing Methods and Obstacles in Chemical Space Exploration"!
 
 ## Getting Started
 To benchmark Deriver using the Guacamol framework, you will need an environment with the `guacamol` python package:
@@ -83,7 +83,7 @@ This will allow a user to reproduce all graphical figures in an unrefined state 
 ```bash
 python plotting.py all_results
 ```
-The `main()` function of plotting.py demonstrates how individual figures may be generated from single benchmarking experiments or from groups as seen in comparative plots and indicated in the grouped folder structure. The parameters used in each folder shown in the tree correspond to one experiment which can be identified using the plublication.
+The `main()` function of plotting.py demonstrates how individual figures may be generated from single benchmarking experiments or from groups as seen in comparative plots and indicated in the grouped folder structure. The parameters used in each folder shown in the tree correspond to one experiment which can be identified using the publication.
 
 
 
