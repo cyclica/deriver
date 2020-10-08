@@ -77,7 +77,8 @@ class Deriver(object):
             self.data.seed_mols = []
             for smile in seeds:
                 seed = Chem.MolFromSmiles(smile, sanitize=True)
-                self.data.seed_smiles.append(smile)
+                iso_smile = Chem.MolToSmiles(seed, isomericSmiles=True)
+                self.data.seed_smiles.append(iso_smile)
                 self.data.seed_mols.append(seed)
         else:
             logger.error("Seeds must be provided as an iterable of Mol objects, or SMILES strings.")
@@ -361,30 +362,16 @@ class Deriver(object):
         self.data.all_good_scanner_children = good_children
         return good_children, all_filtered_children
 
-    def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
-
-        def sanitize(children_list):
-            new_population = []
-            smile_set = set()
-            for mol in children_list:
-                if mol is not None:
-                    try:
-                        smile = Chem.MolToSmiles(mol)
-                        if smile is not None and smile not in smile_set:
-                            smile_set.add(smile)
-                            new_population.append(mol)
-                    except ValueError:
-                        logger.warning('A derive_gb mol failed sanitization')
-            return new_population
+    def derive_gb(self, n_children: int = 100, representation='selfies'):
 
         assert len(self.data.seed_smiles) > 0
         children = []
         good_children = []
-        if kind == 'selfies':
+        if representation == 'selfies':
             self.data.all_good_selfies_gb_children = []
             crossover_fn = selfies_crossover_gb
             mutation_fn = selfies_mutate_gb
-        elif kind =='smiles':
+        elif representation =='smiles':
             self.data.all_good_smiles_gb_children = []
             crossover_fn = crossover_gb
             mutation_fn = mutate_gb
@@ -405,29 +392,20 @@ class Deriver(object):
             new_child = None
         else:
             do_crossover = False
-            new_child = self.data.seed_smiles[0]
+            new_child = self.data.seed_mols[0]
 
         for _ in range(n_children):
-            try:
-                if do_crossover:
-                    parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
-                    parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
-                    new_child = crossover_fn(parent_a, parent_b)
-                if new_child is not None:
-                    mutated_child = mutation_fn(new_child, mut_rate)
-                    assert mutated_child
-                else:
+            if do_crossover:
+                parent_a, parent_b = random.sample(self.data.seed_mols, 2)
+                new_child = crossover_fn(parent_a, parent_b)
+            if new_child is not None:
+                mutated_child = mutation_fn(new_child)
+                if mutated_child is None:
                     continue
-                children.append(mutated_child)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning(f"Produced improper {kind.upper()}. Ignoring and trying again. Details below:")
-                if do_crossover:
-                    logger.warning(f"Parents: \n{parent_a_smiles}\n{parent_b_smiles}")
-                if new_child:
-                    logger.warning(f"Pre-mutation child: {new_child}")
-                logger.warning(e)
+            else:
+                continue
+            children.append(mutated_child)
 
-        children = sanitize(children)
         filtered_children = apply_filter(filter_params,
                                          children,
                                          self.data.must_have_patterns,
@@ -444,7 +422,7 @@ class Deriver(object):
                 else:
                     good_children.append(child)
 
-        if kind == 'smiles':
+        if representation == 'smiles':
             self.data.all_good_smiles_gb_children = good_children
         else:
             self.data.all_good_selfies_gb_children = good_children

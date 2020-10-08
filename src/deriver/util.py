@@ -1,5 +1,6 @@
 from typing import TypeVar, Union, Sequence
 import numpy as np
+from rdkit import Chem
 
 # Vector and matrix types
 T = TypeVar('T')

@@ -1,11 +1,10 @@
 """
-Written by Emilie S. Henault and Jan H. Jensen 2019, copied 04/2020
+Modified from code by Emilie S. Henault and Jan H. Jensen 2019
 """
 
 from rdkit import Chem
 import random
 from selfies import encoder, decoder
-from .jensen_crossover import mol_OK
 
 from rdkit import rdBase
 rdBase.DisableLog('rdApp.error')
@@ -18,14 +17,16 @@ def cut_point(parent):
 
 def mol2string(mol):
     Chem.Kekulize(mol, clearAromaticFlags=True)
-    smiles = Chem.MolToSmiles(mol, canonical=False)
+    smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
     return encoder(smiles).split('][')
 
 
 def string2mol(string):
     string = ']['.join(string)
+    if not string.endswith("]"):
+        string += "]"
     try:
-        smiles = decoder(string,PrintErrorMessage=False)
+        smiles = decoder(string)
     except:
         return None
     try:
@@ -45,7 +46,6 @@ def crossover(parent_a_mol, parent_b_mol):
         b2 = parent_b[cut_point_b:len(parent_b)]
         child_string = a1 + b2
         child_mol = string2mol(child_string)
-        if mol_OK(child_mol):
-            return child_mol
+        return child_mol
 
     return None

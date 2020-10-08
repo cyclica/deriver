@@ -68,23 +68,6 @@ def ring_OK(mol):
     return not ring_allene and not macro_cycle and not double_bond_in_small_ring
 
 
-def mol_OK(mol):
-    try:
-        Chem.SanitizeMol(mol)
-        test_mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
-        if test_mol is None:
-            return None
-        else:
-            return True
-        # target_size = size_stdev*np.random.randn() + average_size #parameters set in GA_mol
-        # if mol.GetNumAtoms() > 5 and mol.GetNumAtoms() < target_size:
-        #    return True
-        # else:
-        #    return False
-    except:
-        return False
-
-
 def crossover_ring(parent_A,parent_B):
     ring_smarts = Chem.MolFromSmarts('[R]')
     if not parent_A.HasSubstructMatch(ring_smarts) and not parent_B.HasSubstructMatch(ring_smarts):
@@ -111,13 +94,12 @@ def crossover_ring(parent_A,parent_B):
             rxn2 = AllChem.ReactionFromSmarts(rs)
             for m in new_mol_trial:
                 m = m[0]
-                if mol_OK(m):
-                    new_mols += list(rxn2.RunReactants((m,)))
+                new_mols += list(rxn2.RunReactants((m,)))
           
         new_mols2 = []
         for m in new_mols:
             m = m[0]
-            if mol_OK(m) and ring_OK(m):
+            if ring_OK(m):
                 new_mols2.append(m)
           
         if len(new_mols2) > 0:
@@ -141,8 +123,7 @@ def crossover_non_ring(parent_A,parent_B):
         new_mols = []
         for mol in new_mol_trial:
             mol = mol[0]
-            if mol_OK(mol):
-                new_mols.append(mol)
+            new_mols.append(mol)
         
         if len(new_mols) > 0:
           return random.choice(new_mols)
