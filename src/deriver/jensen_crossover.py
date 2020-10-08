@@ -53,6 +53,23 @@ def cut_ring(mol):
     return None
 
 
+def mol_OK(mol):
+    try:
+        Chem.SanitizeMol(mol)
+        test_mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
+        if test_mol is None:
+            return None
+        else:
+            return True
+        # target_size = size_stdev*np.random.randn() + average_size #parameters set in GA_mol
+        # if mol.GetNumAtoms() > 5 and mol.GetNumAtoms() < target_size:
+        #    return True
+        # else:
+        #    return False
+    except:
+        return False
+
+
 def ring_OK(mol):
     if not mol.HasSubstructMatch(Chem.MolFromSmarts('[R]')):
         return True
@@ -99,7 +116,7 @@ def crossover_ring(parent_A,parent_B):
         new_mols2 = []
         for m in new_mols:
             m = m[0]
-            if ring_OK(m):
+            if mol_OK(m) and ring_OK(m):
                 new_mols2.append(m)
           
         if len(new_mols2) > 0:

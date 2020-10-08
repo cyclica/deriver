@@ -5,7 +5,7 @@ from rdkit.Chem import AllChem
 
 import random
 import numpy as np
-from .jensen_crossover import ring_OK
+from .jensen_crossover import ring_OK, mol_OK
 
 from rdkit import Chem, rdBase
 rdBase.DisableLog('rdApp.error')
@@ -131,14 +131,14 @@ def reactor(mol):
 
 
 def mutate(mol):
-
+    mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol, isomericSmiles=True), sanitize=True)
     Chem.Kekulize(mol, clearAromaticFlags=True)
     my_reactor = reactor(mol)
     for rxn in my_reactor:
         new_mol_trial = rxn.RunReactants((mol,))
         for m in new_mol_trial:
             m = m[0]
-            if ring_OK(m):
+            if mol_OK(m) and ring_OK(m):
                 return m
 
     return None
