@@ -130,10 +130,7 @@ def reactor(mol):
             yield rxn
 
 
-def mutate(mol, mutation_rate):
-
-    if random.random() > mutation_rate:
-        return mol
+def mutate(mol):
 
     Chem.Kekulize(mol, clearAromaticFlags=True)
     my_reactor = reactor(mol)
