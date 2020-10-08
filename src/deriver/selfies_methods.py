@@ -1,11 +1,11 @@
 from rdkit import Chem
-from selfies import encoder, decoder, selfies_alphabet
+from selfies import encoder, decoder, get_semantic_robust_alphabet
 import re
 import random
 import logging as logger
 
 
-ALPHABET = [symbol.strip("[]") for symbol in selfies_alphabet()]
+ALPHABET = [symbol.strip("[]") for symbol in get_semantic_robust_alphabet()]
 
 # follow these rules for which types of substitution should be allowed
 ALLOWED_SUBS = {
