@@ -32,7 +32,7 @@ Use following folder structure when running benchmarks to avoid pathing errors:
     ├ chembl.bin (created after first run from chembl.db)
     └ goal_directed_generation.py
 ## Benchmarking Deriver
-After this setup, any benchmark described in the paper can be replicated by using the correct arguments described at the end of goal_directed_generation.py:
+After this setup, any benchmark described in the paper can be replicated by using the correct arguments described at the end of goal_directed_generation.py. Exact hyperparameter sets for experiments can be found in the hyperparameters folder.
 ```bash
 nohup python deriver_goal/goal_directed_generation.py
 ```
