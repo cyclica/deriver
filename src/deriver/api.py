@@ -411,6 +411,13 @@ class Deriver(object):
                                          self.data.must_have_patterns,
                                          self.data.must_not_have_patterns
                                          )
+
+        # bugfix for empty strings
+        try:
+            del filtered_children[""]
+        except KeyError:
+            pass
+
         for child in filtered_children:
             if filtered_children[child]["is_good"]:
                 # check the cache
