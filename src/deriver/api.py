@@ -339,6 +339,8 @@ class Deriver(object):
 
         for seed in self.data.seed_smiles:
             children = selfies_scanner(parent_smiles=seed)
+            if len(children) == 0:
+                continue
             self.data.heritage[seed] += children
 
             filtered_children = apply_filter(filter_params,
