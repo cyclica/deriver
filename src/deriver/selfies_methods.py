@@ -334,17 +334,19 @@ def selfies_scanner(*, parent_smiles: str):
                     try:
                         # same as parent, have to have explicit aromaticity
                         child_mol = Chem.MolFromSmiles(child_smiles, sanitize=True)
+                        if child_mol is None:  # if MolToSmiles fails, it will be a None
+                            continue
                         Chem.rdmolops.Kekulize(child_mol)
                         child_smiles = Chem.MolToSmiles(child_mol, isomericSmiles=True, kekuleSmiles=True)
-                        assert child_mol  # if MolToSmiles fails, it will be a None
                         if child_smiles == parent_smiles:  # ignore this child if it's the same as the parent
                             continue
-                    except Exception:  # pylint: disable=broad-except
-                        logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
-                        logger.warning(f"Child SELFIES: {child}")
-                        logger.warning(f"Parent SELFIES:{parent_selfies}")
-                        logger.warning(f"Child SMILES: {child_smiles}")
-                        logger.warning(f"Parent SMILES: {parent_smiles}")
+                    except Exception as e:  # pylint: disable=broad-except
+                        print(e)
+                        # logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
+                        # logger.warning(f"Child SELFIES: {child}")
+                        # logger.warning(f"Parent SELFIES:{parent_selfies}")
+                        # logger.warning(f"Child SMILES: {child_smiles}")
+                        # logger.warning(f"Parent SMILES: {parent_smiles}")
                         continue
                     # Every good child deserves fudge
                     children.append(child_smiles)
