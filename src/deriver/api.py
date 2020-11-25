@@ -528,6 +528,9 @@ class Deriver(object):
 
         # get the "maximum number of children" per fragment
         n_seed_frags = len(self.data.seed_frags)
+        if n_seed_frags == 0:
+            logger.warning("No seed fragments! Cannot derive brics from these seeds.")
+            return [], {}
 
         if self.data.filter:
             filter_params = self.data.filter_params
