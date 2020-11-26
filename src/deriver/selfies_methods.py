@@ -309,11 +309,15 @@ def random_selfies_generator(*, n_symbols: int = 100):
             yield child_smiles
 
 
-def selfies_scanner(*, parent_smiles: str):
+def selfies_scanner(*, parent_smiles: str, safe_mode: bool = False):
     # get the parent mol set up properly with defined aromaticity
     parent_mol = Chem.MolFromSmiles(parent_smiles, sanitize=True)
     Chem.rdmolops.Kekulize(parent_mol)
     parent_smiles = Chem.MolToSmiles(parent_mol, isomericSmiles=True, kekuleSmiles=True)
+    if safe_mode:
+        if parent_mol.GetNumAtoms() > 100:
+            logger.warning(f"NOT making children from: {parent_smiles}, safe mode on, too many atoms.")
+            return []
     logger.info(f"Generating children from: {parent_smiles}")
 
     children = []  # finished children

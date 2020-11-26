@@ -321,7 +321,7 @@ class Deriver(object):
         self.data.all_good_selfies_children = good_children
         return good_children
 
-    def scan_selfies(self):
+    def scan_selfies(self, safe_mode: bool = False):
 
         """
         Return all possible single substitution children for all the seeds.
@@ -338,7 +338,7 @@ class Deriver(object):
         all_filtered_children = {}
 
         for seed in self.data.seed_smiles:
-            children = selfies_scanner(parent_smiles=seed)
+            children = selfies_scanner(parent_smiles=seed, safe_mode=safe_mode)
             if len(children) == 0:
                 continue
             self.data.heritage[seed] += children
