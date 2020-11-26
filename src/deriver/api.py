@@ -51,6 +51,7 @@ class Deriver(object):
             self.must_have_patterns = None
             self.must_not_have_patterns = None
             self.heritage = defaultdict(list)
+            self.track_heritage = True
             # BRICS specific
             self.seed_frags = None  # these are the fragments of the seed molecules
             self.fragment_source_db = None  # this is the location of the fragment DB
@@ -108,6 +109,11 @@ class Deriver(object):
         assert isinstance(filter_molecules, set)
         assert isinstance(iter(filter_molecules).__next__(), str)
         self.data.filter_molecules = filter_molecules
+        return 1
+
+    def toggle_heritage_tracking(self):
+        self.data.track_heritage = not self.data.track_heritage
+        logger.info(f"Heritage tracking is now {self.data.track_heritage}")
         return 1
 
     def enable_and_expand_filter(self, seeds: list = None):
@@ -242,7 +248,8 @@ class Deriver(object):
                                             mut_rate=mut_rate,
                                             mut_min=mut_min,
                                             mut_max=mut_max)
-            self.data.heritage[seed] += children
+            if self.data.track_heritage:
+                self.data.heritage[seed] += children
             child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_insertion(parent_smiles=seed,
@@ -250,7 +257,8 @@ class Deriver(object):
                                          mut_rate=mut_rate,
                                          mut_min=mut_min,
                                          mut_max=mut_max)
-            self.data.heritage[seed] += children
+            if self.data.track_heritage:
+                self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_deletion(parent_smiles=seed,
@@ -258,7 +266,8 @@ class Deriver(object):
                                         mut_rate=mut_rate,
                                         mut_min=mut_min,
                                         mut_max=mut_max)
-            self.data.heritage[seed] += children
+            if self.data.track_heritage:
+                self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             # filter children
@@ -341,7 +350,8 @@ class Deriver(object):
             children = selfies_scanner(parent_smiles=seed, safe_mode=safe_mode)
             if len(children) == 0:
                 continue
-            self.data.heritage[seed] += children
+            if self.data.track_heritage:
+                self.data.heritage[seed] += children
 
             filtered_children = apply_filter(filter_params,
                                              [Chem.MolFromSmiles(child) for child in children],
@@ -570,7 +580,8 @@ class Deriver(object):
 
                 _, filter_values = res  # we only care about the filter dict, since it has everything
                 all_filtered_children.update(filter_values)  # update our master dict
-                self.data.heritage[parent_smile] += list(filter_values.keys())  # this keeps track of heritage
+                if self.data.track_heritage:
+                    self.data.heritage[parent_smile] += list(filter_values.keys())  # this keeps track of heritage
             except IndexError as e:
                 # This bug has never really been explored that much.
                 logger.warning(f"Error when trying to mate a molecule, ignoring this molecule. Error: {e}")

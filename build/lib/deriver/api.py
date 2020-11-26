@@ -241,7 +241,8 @@ class Deriver(object):
                                             mut_rate=mut_rate,
                                             mut_min=mut_min,
                                             mut_max=mut_max)
-            self.data.heritage[seed] += children
+            if self.data.track_heritage:
+                self.data.heritage[seed] += children
             child_mols = [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_insertion(parent_smiles=seed,
@@ -249,7 +250,8 @@ class Deriver(object):
                                          mut_rate=mut_rate,
                                          mut_min=mut_min,
                                          mut_max=mut_max)
-            self.data.heritage[seed] += children
+            if self.data.track_heritage:
+                self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             children = selfies_deletion(parent_smiles=seed,
@@ -257,7 +259,8 @@ class Deriver(object):
                                         mut_rate=mut_rate,
                                         mut_min=mut_min,
                                         mut_max=mut_max)
-            self.data.heritage[seed] += children
+            self.data.track_heritage:
+                self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
             # filter children
@@ -338,7 +341,8 @@ class Deriver(object):
 
         for seed in self.data.seed_smiles:
             children = selfies_scanner(parent_smiles=seed)
-            self.data.heritage[seed] += children
+            if self.data.track_heritage:
+                self.data.heritage[seed] += children
 
             filtered_children = apply_filter(filter_params,
                                              [Chem.MolFromSmiles(child) for child in children],
@@ -580,7 +584,8 @@ class Deriver(object):
 
                 _, filter_values = res  # we only care about the filter dict, since it has everything
                 all_filtered_children.update(filter_values)  # update our master dict
-                self.data.heritage[parent_smile] += list(filter_values.keys())  # this keeps track of heritage
+                if self.data.track_heritage:
+                    self.data.heritage[parent_smile] += list(filter_values.keys())  # this keeps track of heritage
             except IndexError as e:
                 # This bug has never really been explored that much.
                 logger.warning(f"Error when trying to mate a molecule, ignoring this molecule. Error: {e}")
