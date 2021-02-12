@@ -7,9 +7,12 @@ Requires `rdkit` to be installed, along with everything in `requirements.txt`.
 
 To use the `derive_local_space()` method, you will need to make or use a prexisting fragment database. You can find more information here: https://github.com/DrrDom/crem
 
+## Paper
 
-# Installation
-rdkit can be installed on Ubuntu 18.04 using the provided script: 
+[Reeves, S., DiFrancesco, B., Shahani, V., MacKinnon, S., Windemuth, A., & Brereton, A. E. (2020). Assessing methods and obstacles in chemical space exploration. Applied AI Letters.](https://onlinelibrary.wiley.com/doi/full/10.1002/ail2.17)
+
+## Installation
+rdkit can be installed on Ubuntu 18.04 or 20.04 using the provided script: 
 
 https://github.com/cyclica/rdkit-installer
 
@@ -20,3 +23,4 @@ repo and from the cloned directory running: `pip install -e .`
 * unit testings and code coverage
 * refactor filter module to be better and more polymorphic
 * create a means to combine multiple `derive_*` methods into a single function, polymorphically
+
