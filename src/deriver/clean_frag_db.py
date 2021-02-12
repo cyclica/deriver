@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from playhouse.sqlite_ext import SqliteExtDatabase
-import logging as logger
+from .config import logger
 from .lib_read import lib_read
 
 

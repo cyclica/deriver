@@ -9,7 +9,7 @@ from peewee import SqliteDatabase
 from rdkit.Chem.BRICS import reverseReactions
 from rdkit import Chem
 import random
-import logging as logger
+from .config import logger
 
 
 def react(user_frag, mate_mols):

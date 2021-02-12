@@ -9,7 +9,7 @@ from peewee import chunked
 from rdkit import RDLogger
 from rdkit import Chem
 from rdkit.Chem import BRICS
-import logging as logger
+from .config import logger
 from copy import deepcopy
 import re
 from .clean_frag_db import clean
