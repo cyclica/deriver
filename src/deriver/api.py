@@ -1,4 +1,4 @@
-import logging as logger
+from .config import logger
 import uuid
 from .child_filter import get_filter_values, apply_filter
 from .config import drug_like_params
@@ -19,6 +19,8 @@ from .jensen_crossover import crossover as crossover_gb
 from .jensen_mutate import mutate as mutate_gb
 from .jensen_selfies_crossover import crossover as selfies_crossover_gb
 from .jensen_selfies_mutate import mutate as selfies_mutate_gb
+from crem.crem import grow_mol as crem_grow
+from crem.crem import mutate_mol as crem_mutate
 
 
 class Deriver(object):
@@ -47,6 +49,7 @@ class Deriver(object):
             self.all_good_scanner_children = None
             self.all_good_selfies_gb_children = None
             self.all_good_smiles_gb_children = None
+            self.all_good_local_children = None
             self.filter_molecules = None
             self.must_have_patterns = None
             self.must_not_have_patterns = None
@@ -57,6 +60,7 @@ class Deriver(object):
             self.fragment_source_db = None  # this is the location of the fragment DB
             self.seed_frag_db = None  # the is the DB where the seed_frags are stored and info about them
             self.all_good_brics_children = None  # this is where the good (filtered) BRICS children are saved
+            self.crem_source_db = None  # the location of the crem fragment database used by the local space methods
 
     def set_seeds(self, seeds: list):
 
@@ -459,6 +463,16 @@ class Deriver(object):
         self.data.fragment_source_db = frag_db
         return 1
 
+    def set_crem_source_db(self, crem_db: str):
+
+        """
+        set the location for the fragment database that is used by crem
+        :param crem_db:
+        :return:
+        """
+        self.data.crem_source_db = crem_db
+        return 1
+
     def _process_seeds_for_brics(self):
         """
         This function parses the seed molecules and gets the BRICS fragments they make, then cleans them
@@ -603,3 +617,71 @@ class Deriver(object):
         logger.info(f"Generated {len(self.data.all_good_brics_children)} 'good' children.")
         self.data.all_good_brics_children = all_good_children
         return all_good_children, all_filtered_children
+
+    def derive_local_space(self, approx_children_per_seed: int = 1000):
+
+        if self.data.crem_source_db is None:
+            raise AttributeError("No crem source db. Please use `.set_crem_source_db()` to provide a source db. "
+                                 "See readme for more information.")
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
+                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
+                           " in order to use a filter for drug-likeness.")
+            filter_params = None
+
+        children = []
+        good_children = []
+        # first we make the molecules by using grow to replace hydrogens, and mutate to do everything else
+        for i, seed_mol in enumerate(self.data.seed_mols):
+            logger.info(f"Growing children for {self.data.seed_smiles[i]}:")
+            grown_children_smiles = crem_grow(seed_mol, self.data.crem_source_db, return_mol=False)
+            grown_children_mols = [Chem.MolFromSmiles(smile, sanitize=True) for smile in grown_children_smiles]
+            children.extend(grown_children_mols)
+            logger.info(f"Done!")
+
+            logger.info(f"Mutating children for {self.data.seed_smiles[i]}:")
+            mutate_children_smiles = crem_mutate(seed_mol, self.data.crem_source_db, return_mol=False,
+                                                 max_replacements=approx_children_per_seed, min_size=1, max_size=5,
+                                                 min_inc=-2, max_inc=2
+                                                 )
+            mutate_children_mols = [Chem.MolFromSmiles(smile, sanitize=True) for smile in mutate_children_smiles]
+            children.extend(mutate_children_mols)
+            logger.info(f"Done!")
+
+        if self.data.filter:
+            logger.info("Applying filters to local space children:")
+        else:
+            logger.info("Calculating properties of local space children:")
+
+        filtered_children = apply_filter(filter_params,
+                                         children,
+                                         self.data.must_have_patterns,
+                                         self.data.must_not_have_patterns
+                                         )
+
+        # bugfix for empty strings
+        try:
+            del filtered_children[""]
+        except KeyError:
+            pass
+
+        logger.info("Done!")
+
+        for child in filtered_children:
+            if filtered_children[child]["is_good"]:
+                # check the cache
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
+                        good_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    good_children.append(child)
+
+        self.data.all_good_local_children = good_children
+        logger.info(f"Generated {len(self.data.all_good_local_children)} 'good' children.")
+
+        return good_children, filtered_children

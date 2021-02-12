@@ -2,8 +2,7 @@ from rdkit import Chem
 from selfies import encoder, decoder, get_semantic_robust_alphabet
 import re
 import random
-import logging as logger
-
+from .config import logger
 
 ALPHABET = [symbol.strip("[]") for symbol in get_semantic_robust_alphabet()]
 

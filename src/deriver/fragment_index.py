@@ -11,7 +11,7 @@ import pickle
 from typing import Set
 import numpy as np
 from peewee import SqliteDatabase
-import logging as logger
+from .config import logger
 from .util import lazy
 from .fragment_caches import percent, CacheL2
 from .fragment_queries import BackupQuery1, BackupQuery2, \
