@@ -18,7 +18,6 @@ src/deriver/jensen_selfies_mutate.py
 src/deriver/lib_read.py
 src/deriver/mate.py
 src/deriver/selfies_methods.py
-src/deriver/test_deriver.py
 src/deriver/util.py
 src/deriver.egg-info/PKG-INFO
 src/deriver.egg-info/SOURCES.txt
