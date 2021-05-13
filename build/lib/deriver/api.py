@@ -1,4 +1,4 @@
-import logging as logger
+from .config import logger
 import uuid
 from .child_filter import get_filter_values, apply_filter
 from .config import drug_like_params
@@ -19,6 +19,9 @@ from .jensen_crossover import crossover as crossover_gb
 from .jensen_mutate import mutate as mutate_gb
 from .jensen_selfies_crossover import crossover as selfies_crossover_gb
 from .jensen_selfies_mutate import mutate as selfies_mutate_gb
+from crem.crem import grow_mol as crem_grow
+from crem.crem import mutate_mol as crem_mutate
+from copy import deepcopy
 
 
 class Deriver(object):
@@ -40,22 +43,25 @@ class Deriver(object):
         def __init__(self):
             self.seed_smiles = None
             self.seed_mols = None
-            self.filter_params = drug_like_params
+            self.filter_params = deepcopy(drug_like_params)
             self.filter = False
             self.child_db = None
             self.all_good_selfies_children = None
             self.all_good_scanner_children = None
             self.all_good_selfies_gb_children = None
             self.all_good_smiles_gb_children = None
+            self.all_good_local_children = None
             self.filter_molecules = None
             self.must_have_patterns = None
             self.must_not_have_patterns = None
             self.heritage = defaultdict(list)
+            self.track_heritage = True
             # BRICS specific
             self.seed_frags = None  # these are the fragments of the seed molecules
             self.fragment_source_db = None  # this is the location of the fragment DB
             self.seed_frag_db = None  # the is the DB where the seed_frags are stored and info about them
             self.all_good_brics_children = None  # this is where the good (filtered) BRICS children are saved
+            self.crem_source_db = None  # the location of the crem fragment database used by the local space methods
 
     def set_seeds(self, seeds: list):
 
@@ -77,7 +83,8 @@ class Deriver(object):
             self.data.seed_mols = []
             for smile in seeds:
                 seed = Chem.MolFromSmiles(smile, sanitize=True)
-                self.data.seed_smiles.append(smile)
+                iso_smile = Chem.MolToSmiles(seed, isomericSmiles=True)
+                self.data.seed_smiles.append(iso_smile)
                 self.data.seed_mols.append(seed)
         else:
             logger.error("Seeds must be provided as an iterable of Mol objects, or SMILES strings.")
@@ -107,6 +114,11 @@ class Deriver(object):
         assert isinstance(filter_molecules, set)
         assert isinstance(iter(filter_molecules).__next__(), str)
         self.data.filter_molecules = filter_molecules
+        return 1
+
+    def toggle_heritage_tracking(self):
+        self.data.track_heritage = not self.data.track_heritage
+        logger.info(f"Heritage tracking is now {self.data.track_heritage}")
         return 1
 
     def enable_and_expand_filter(self, seeds: list = None):
@@ -230,9 +242,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         for seed in self.data.seed_smiles:
@@ -259,7 +268,7 @@ class Deriver(object):
                                         mut_rate=mut_rate,
                                         mut_min=mut_min,
                                         mut_max=mut_max)
-            self.data.track_heritage:
+            if self.data.track_heritage:
                 self.data.heritage[seed] += children
             child_mols += [Chem.MolFromSmiles(child, sanitize=True) for child in children]
 
@@ -295,9 +304,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         while len(good_children) < n_molecules:
@@ -323,7 +329,7 @@ class Deriver(object):
         self.data.all_good_selfies_children = good_children
         return good_children
 
-    def scan_selfies(self):
+    def scan_selfies(self, safe_mode: bool = False):
 
         """
         Return all possible single substitution children for all the seeds.
@@ -331,16 +337,15 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
         good_children = []
         self.data.all_good_scanner_children = []
         all_filtered_children = {}
 
         for seed in self.data.seed_smiles:
-            children = selfies_scanner(parent_smiles=seed)
+            children = selfies_scanner(parent_smiles=seed, safe_mode=safe_mode)
+            if len(children) == 0:
+                continue
             if self.data.track_heritage:
                 self.data.heritage[seed] += children
 
@@ -365,30 +370,16 @@ class Deriver(object):
         self.data.all_good_scanner_children = good_children
         return good_children, all_filtered_children
 
-    def derive_gb(self, n_children: int = 100, mut_rate: float = 0.01, kind='smiles'):
-
-        def sanitize(children_list):
-            new_population = []
-            smile_set = set()
-            for mol in children_list:
-                if mol is not None:
-                    try:
-                        smile = Chem.MolToSmiles(mol)
-                        if smile is not None and smile not in smile_set:
-                            smile_set.add(smile)
-                            new_population.append(mol)
-                    except ValueError:
-                        logger.warning('A derive_gb mol failed sanitization')
-            return new_population
+    def derive_gb(self, n_children: int = 100, representation='selfies'):
 
         assert len(self.data.seed_smiles) > 0
         children = []
         good_children = []
-        if kind == 'selfies':
+        if representation == 'selfies':
             self.data.all_good_selfies_gb_children = []
             crossover_fn = selfies_crossover_gb
             mutation_fn = selfies_mutate_gb
-        elif kind =='smiles':
+        elif representation =='smiles':
             self.data.all_good_smiles_gb_children = []
             crossover_fn = crossover_gb
             mutation_fn = mutate_gb
@@ -398,9 +389,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         parent_a_smiles, parent_b_smiles = (None, None)
@@ -409,34 +397,32 @@ class Deriver(object):
             new_child = None
         else:
             do_crossover = False
-            new_child = self.data.seed_smiles[0]
+            new_child = self.data.seed_mols[0]
 
         for _ in range(n_children):
-            try:
-                if do_crossover:
-                    parent_a_smiles, parent_b_smiles = random.sample(self.data.seed_smiles, 2)
-                    parent_a, parent_b = [Chem.MolFromSmiles(s) for s in (parent_a_smiles, parent_b_smiles)]
-                    new_child = crossover_fn(parent_a, parent_b)
-                if new_child is not None:
-                    mutated_child = mutation_fn(new_child, mut_rate)
-                    assert mutated_child
-                else:
+            if do_crossover:
+                parent_a, parent_b = random.sample(self.data.seed_mols, 2)
+                new_child = crossover_fn(parent_a, parent_b)
+            if new_child is not None:
+                mutated_child = mutation_fn(new_child)
+                if mutated_child is None:
                     continue
-                children.append(mutated_child)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning(f"Produced improper {kind.upper()}. Ignoring and trying again. Details below:")
-                if do_crossover:
-                    logger.warning(f"Parents: \n{parent_a_smiles}\n{parent_b_smiles}")
-                if new_child:
-                    logger.warning(f"Pre-mutation child: {new_child}")
-                logger.warning(e)
+            else:
+                continue
+            children.append(mutated_child)
 
-        children = sanitize(children)
         filtered_children = apply_filter(filter_params,
                                          children,
                                          self.data.must_have_patterns,
                                          self.data.must_not_have_patterns
                                          )
+
+        # bugfix for empty strings
+        try:
+            del filtered_children[""]
+        except KeyError:
+            pass
+
         for child in filtered_children:
             if filtered_children[child]["is_good"]:
                 # check the cache
@@ -448,7 +434,7 @@ class Deriver(object):
                 else:
                     good_children.append(child)
 
-        if kind == 'smiles':
+        if representation == 'smiles':
             self.data.all_good_smiles_gb_children = good_children
         else:
             self.data.all_good_selfies_gb_children = good_children
@@ -464,6 +450,16 @@ class Deriver(object):
         """
 
         self.data.fragment_source_db = frag_db
+        return 1
+
+    def set_crem_source_db(self, crem_db: str):
+
+        """
+        set the location for the fragment database that is used by crem
+        :param crem_db:
+        :return:
+        """
+        self.data.crem_source_db = crem_db
         return 1
 
     def _process_seeds_for_brics(self):
@@ -545,13 +541,13 @@ class Deriver(object):
 
         # get the "maximum number of children" per fragment
         n_seed_frags = len(self.data.seed_frags)
+        if n_seed_frags == 0:
+            logger.warning("No seed fragments! Cannot derive brics from these seeds.")
+            return [], {}
 
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         if n_children < n_seed_frags:
@@ -607,3 +603,66 @@ class Deriver(object):
         logger.info(f"Generated {len(self.data.all_good_brics_children)} 'good' children.")
         self.data.all_good_brics_children = all_good_children
         return all_good_children, all_filtered_children
+
+    def derive_local_space(self, approx_children_per_seed: int = 1000):
+
+        if self.data.crem_source_db is None:
+            raise AttributeError("No crem source db. Please use `.set_crem_source_db()` to provide a source db. "
+                                 "See readme for more information.")
+
+        if self.data.filter:
+            filter_params = self.data.filter_params
+        else:
+            filter_params = None
+
+        children = []
+        good_children = []
+        # first we make the molecules by using grow to replace hydrogens, and mutate to do everything else
+        for i, seed_mol in enumerate(self.data.seed_mols):
+            logger.info(f"Growing children for {self.data.seed_smiles[i]}:")
+            grown_children_smiles = crem_grow(seed_mol, self.data.crem_source_db, return_mol=False)
+            grown_children_mols = [Chem.MolFromSmiles(smile, sanitize=True) for smile in grown_children_smiles]
+            children.extend(grown_children_mols)
+            logger.info(f"Done!")
+
+            logger.info(f"Mutating children for {self.data.seed_smiles[i]}:")
+            mutate_children_smiles = crem_mutate(seed_mol, self.data.crem_source_db, return_mol=False,
+                                                 max_replacements=approx_children_per_seed, min_size=1, max_size=5,
+                                                 min_inc=-2, max_inc=2
+                                                 )
+            mutate_children_mols = [Chem.MolFromSmiles(smile, sanitize=True) for smile in mutate_children_smiles]
+            children.extend(mutate_children_mols)
+            logger.info(f"Done!")
+
+        if self.data.filter:
+            logger.info("Applying filters to local space children:")
+
+        filtered_children = apply_filter(filter_params,
+                                         children,
+                                         self.data.must_have_patterns,
+                                         self.data.must_not_have_patterns
+                                         )
+
+        # bugfix for empty strings
+        try:
+            del filtered_children[""]
+        except KeyError:
+            pass
+
+        logger.info("Done!")
+
+        for child in filtered_children:
+            if filtered_children[child]["is_good"]:
+                # check the cache
+                if self.data.filter_molecules:
+                    if child not in self.data.filter_molecules:
+                        good_children.append(child)
+                    else:
+                        logger.debug(f"skipping previously seen molecule: {child}")
+                else:
+                    good_children.append(child)
+
+        self.data.all_good_local_children = good_children
+        logger.info(f"Generated {len(self.data.all_good_local_children)} 'good' children.")
+
+        return good_children, filtered_children
