@@ -1,10 +1,8 @@
-Metadata-Version: 1.0
+Metadata-Version: 2.1
 Name: deriver
-Version: 2.7.1
+Version: 2.7.2
 Summary: Deriver: for all your molecule generation needs.
 Home-page: https://github.com/cyclica/deriver
-Author: UNKNOWN
-Author-email: UNKNOWN
 License: All Rights Reserved Cyclica Inc.
 Description: A software tool for the generation of novel chemical entities.
 Platform: UNKNOWN

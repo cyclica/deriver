@@ -21,6 +21,7 @@ from .jensen_selfies_crossover import crossover as selfies_crossover_gb
 from .jensen_selfies_mutate import mutate as selfies_mutate_gb
 from crem.crem import grow_mol as crem_grow
 from crem.crem import mutate_mol as crem_mutate
+from copy import deepcopy
 
 
 class Deriver(object):
@@ -42,7 +43,7 @@ class Deriver(object):
         def __init__(self):
             self.seed_smiles = None
             self.seed_mols = None
-            self.filter_params = drug_like_params
+            self.filter_params = deepcopy(drug_like_params)
             self.filter = False
             self.child_db = None
             self.all_good_selfies_children = None
@@ -241,9 +242,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         for seed in self.data.seed_smiles:
@@ -306,9 +304,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         while len(good_children) < n_molecules:
@@ -342,9 +337,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
         good_children = []
         self.data.all_good_scanner_children = []
@@ -397,9 +389,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         parent_a_smiles, parent_b_smiles = (None, None)
@@ -559,9 +548,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         if n_children < n_seed_frags:
@@ -627,9 +613,6 @@ class Deriver(object):
         if self.data.filter:
             filter_params = self.data.filter_params
         else:
-            logger.warning("Warning: No filter has been set, so all child molecules will be labeled"
-                           " as 'good' regardless of quality. Please call Deriver.set_filter() first"
-                           " in order to use a filter for drug-likeness.")
             filter_params = None
 
         children = []
@@ -653,8 +636,6 @@ class Deriver(object):
 
         if self.data.filter:
             logger.info("Applying filters to local space children:")
-        else:
-            logger.info("Calculating properties of local space children:")
 
         filtered_children = apply_filter(filter_params,
                                          children,

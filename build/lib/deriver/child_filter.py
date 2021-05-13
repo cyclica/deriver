@@ -97,12 +97,16 @@ def apply_filter(final_limits, children, must_have_patterns: List[str] = None, m
     # compute the values to check for all the children
     child_values = {}
     for child in children:
+        #TODO: this is wasteful when it's already precalculated?
         smile = Chem.MolToSmiles(child, isomericSmiles=True)
         # avoid filtering the same smile multiple times
         if smile in child_values:
             pass
         else:
-            child_values[smile] = get_filter_values(child)
+            if final_limits is None:
+                child_values[smile] = {"is_good": True}
+            else:
+                child_values[smile] = get_filter_values(child)
     if final_limits is None:
         return child_values
 

@@ -1,11 +1,10 @@
 from rdkit import Chem
-from selfies import encoder, decoder, selfies_alphabet
+from selfies import encoder, decoder, get_semantic_robust_alphabet
 import re
 import random
-import logging as logger
+from .config import logger
 
-
-ALPHABET = [symbol.strip("[]") for symbol in selfies_alphabet()]
+ALPHABET = [symbol.strip("[]") for symbol in get_semantic_robust_alphabet()]
 
 # follow these rules for which types of substitution should be allowed
 ALLOWED_SUBS = {
@@ -309,11 +308,15 @@ def random_selfies_generator(*, n_symbols: int = 100):
             yield child_smiles
 
 
-def selfies_scanner(*, parent_smiles: str):
+def selfies_scanner(*, parent_smiles: str, safe_mode: bool = False):
     # get the parent mol set up properly with defined aromaticity
     parent_mol = Chem.MolFromSmiles(parent_smiles, sanitize=True)
     Chem.rdmolops.Kekulize(parent_mol)
     parent_smiles = Chem.MolToSmiles(parent_mol, isomericSmiles=True, kekuleSmiles=True)
+    if safe_mode:
+        if parent_mol.GetNumAtoms() > 100:
+            logger.warning(f"NOT making children from: {parent_smiles}, safe mode on, too many atoms.")
+            return []
     logger.info(f"Generating children from: {parent_smiles}")
 
     children = []  # finished children
@@ -334,17 +337,19 @@ def selfies_scanner(*, parent_smiles: str):
                     try:
                         # same as parent, have to have explicit aromaticity
                         child_mol = Chem.MolFromSmiles(child_smiles, sanitize=True)
+                        if child_mol is None:  # if MolToSmiles fails, it will be a None
+                            continue
                         Chem.rdmolops.Kekulize(child_mol)
                         child_smiles = Chem.MolToSmiles(child_mol, isomericSmiles=True, kekuleSmiles=True)
-                        assert child_mol  # if MolToSmiles fails, it will be a None
                         if child_smiles == parent_smiles:  # ignore this child if it's the same as the parent
                             continue
-                    except Exception:  # pylint: disable=broad-except
-                        logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
-                        logger.warning(f"Child SELFIES: {child}")
-                        logger.warning(f"Parent SELFIES:{parent_selfies}")
-                        logger.warning(f"Child SMILES: {child_smiles}")
-                        logger.warning(f"Parent SMILES: {parent_smiles}")
+                    except Exception as e:  # pylint: disable=broad-except
+                        print(e)
+                        # logger.warning(f"Produced improper SELFIES. Ignoring and trying again. Details below:")
+                        # logger.warning(f"Child SELFIES: {child}")
+                        # logger.warning(f"Parent SELFIES:{parent_selfies}")
+                        # logger.warning(f"Child SMILES: {child_smiles}")
+                        # logger.warning(f"Parent SMILES: {parent_smiles}")
                         continue
                     # Every good child deserves fudge
                     children.append(child_smiles)
