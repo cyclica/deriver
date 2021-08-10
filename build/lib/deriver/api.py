@@ -604,7 +604,7 @@ class Deriver(object):
         self.data.all_good_brics_children = all_good_children
         return all_good_children, all_filtered_children
 
-    def derive_local_space(self, approx_children_per_seed: int = 1000):
+    def derive_local_space(self, approx_children_per_seed: int = 1000, min_inc: int = -2, max_inc: int = 2):
 
         if self.data.crem_source_db is None:
             raise AttributeError("No crem source db. Please use `.set_crem_source_db()` to provide a source db. "
@@ -628,7 +628,7 @@ class Deriver(object):
             logger.info(f"Mutating children for {self.data.seed_smiles[i]}:")
             mutate_children_smiles = crem_mutate(seed_mol, self.data.crem_source_db, return_mol=False,
                                                  max_replacements=approx_children_per_seed, min_size=1, max_size=5,
-                                                 min_inc=-2, max_inc=2
+                                                 min_inc=min_inc, max_inc=max_inc
                                                  )
             mutate_children_mols = [Chem.MolFromSmiles(smile, sanitize=True) for smile in mutate_children_smiles]
             children.extend(mutate_children_mols)
