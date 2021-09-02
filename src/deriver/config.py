@@ -2,27 +2,28 @@ from loguru import logger
 import sys
 import resource
 
-logger_short_format = "{time:HH:mm:ss} {extra[mem]} <level>{message}</level>"
-logger_long_format  = "{time:YYYY:MM:DD HH:mm:ss} | {module}:{file}:{function}:{line} | {level} | {extra[mem]} {message}"
-
-loguru_config = {
-    "handlers": [
-        {"sink": sys.stdout, "format": logger_short_format},
-        {"sink": "logs/{time:YYYY/MM/DD/HH_CCC}.log", "enqueue": True, "delay": True,
-         "format": logger_long_format},
-    ],
-    "levels": [
-        {"name": "DEBUG", "color": "<fg #377eb8>"},
-        {"name": "INFO", "color": "<fg #4daf4a>"},
-        {"name": "WARNING", "color": "<fg #ff7f00>"},
-        {"name": "ERROR", "color": "<fg #de2d26>"},
-        {"name": "CRITICAL", "color": "<fg #a50f15>"},
-        {"name": "SUCCESS", "color": "<cyan>"}
-    ],
-    "extra": {"mem": "@@@"}    # needed for memory logging
-}
-
-logger.configure(**loguru_config)
+def configure_default_logging():
+    logger_short_format = "{time:HH:mm:ss} {extra[mem]} <level>{message}</level>"
+    logger_long_format  = "{time:YYYY:MM:DD HH:mm:ss} | {module}:{file}:{function}:{line} | {level} | {extra[mem]} {message}"
+    
+    loguru_config = {
+        "handlers": [
+            {"sink": sys.stdout, "format": logger_short_format},
+            {"sink": "logs/{time:YYYY/MM/DD/HH_CCC}.log", "enqueue": True, "delay": True,
+             "format": logger_long_format},
+        ],
+        "levels": [
+            {"name": "DEBUG", "color": "<fg #377eb8>"},
+            {"name": "INFO", "color": "<fg #4daf4a>"},
+            {"name": "WARNING", "color": "<fg #ff7f00>"},
+            {"name": "ERROR", "color": "<fg #de2d26>"},
+            {"name": "CRITICAL", "color": "<fg #a50f15>"},
+            {"name": "SUCCESS", "color": "<cyan>"}
+        ],
+        "extra": {"mem": "@@@"}    # needed for memory logging
+    }
+    
+    logger.configure(**loguru_config)
 
 # The below will cause memory use to be logged, but only if a newer version of loguru is installed:
 #   pip install loguru -U
