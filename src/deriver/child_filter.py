@@ -118,6 +118,13 @@ def apply_filter(
             child_values[smile]["is_good"] = False
             child_values[smile]["rejections"].append("MW")
         if (
+            child_values[smile]["num_heavy_atoms"] <= final_limits["num_heavy_atoms"][0]
+            or child_values[smile]["num_heavy_atoms"]
+            >= final_limits["num_heavy_atoms"][1]
+        ):
+            child_values[smile]["is_good"] = False
+            child_values[smile]["rejections"].append("num_heavy_atoms")
+        if (
             child_values[smile]["num_carbons"] <= final_limits["num_carbons"][0]
             or child_values[smile]["num_carbons"] >= final_limits["num_carbons"][1]
         ):
@@ -150,6 +157,12 @@ def apply_filter(
         ):
             child_values[smile]["is_good"] = False
             child_values[smile]["rejections"].append("logP")
+        if (
+            child_values[smile]["fSP3"] <= final_limits["fSP3"][0]
+            or child_values[smile]["fSP3"] >= final_limits["fSP3"][1]
+        ):
+            child_values[smile]["is_good"] = False
+            child_values[smile]["rejections"].append("fSP3")
 
         # upper limits
         if child_values[smile]["HBA"] >= final_limits["HBA"]:
