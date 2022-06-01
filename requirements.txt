@@ -1,5 +1,5 @@
-selfies==1.0.1
+selfies==2.1.0
 peewee>=3.9.3
 numpy>=1.16.3
-crem==0.2.4
-loguru==0.4.1
+crem==0.2.9
+loguru==0.6.0
