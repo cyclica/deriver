@@ -17,7 +17,7 @@ setup(
         "peewee>=3.9.3",
         "numpy>=1.16.3",
         "crem==0.2.4",
-        "loguru==0.4.1",
+        "loguru==0.5.3",
         "pandas>=1.0.*",
     ],
 )
